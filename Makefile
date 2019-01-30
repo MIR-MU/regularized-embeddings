@@ -1,6 +1,6 @@
 .PHONY: all
 
-all: AMAZON BBC OHSUMED Reuters-21578 RCV1v2 CRANFIELD 20NEWS TWITTER NTCIR corpora vectors
+all: AMAZON BBC OHSUMED Reuters-21578 RCV1v2 CRANFIELD 20NEWS TWITTER NTCIR corpora vectors matrices
 
 AMAZON:
 	mkdir -p $@
@@ -89,6 +89,9 @@ corpora:
 	cd $@ && wget http://mattmahoney.net/dc/text8.zip
 	cd $@ && unzip *.zip
 	cd $@ && perl ../wikifil.pl enwik9 > fil9
+
+matrices:
+	mkdir -p $@
 
 vectors: Word2Bits corpora
 	mkdir -p $@

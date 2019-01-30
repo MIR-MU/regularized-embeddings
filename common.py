@@ -711,6 +711,7 @@ def cached_sparsesvd(basename, *args):
         The :math:`V^T` matrix.
     """
 
+    subprocess.call('make matrices', shell=True)
     filename = 'matrices/svd-{}.pkl.xz'.format(basename)
     try:
         with lzma.open(filename, 'rb') as f:
@@ -742,6 +743,7 @@ def cached_sparse_term_similarity_matrix(basename, *args, **kwargs):
         The sparse term similarity matrix.
     """
 
+    subprocess.call('make matrices', shell=True)
     filename = 'matrices/termsim-{}.pkl.xz'.format(basename)
     try:
         with lzma.open(filename, 'rb') as f:
