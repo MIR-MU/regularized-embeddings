@@ -5,6 +5,7 @@ from itertools import chain, product, repeat
 import json
 import logging
 import lzma
+from math import sqrt
 from multiprocessing import Pool
 import pickle
 import subprocess
@@ -24,7 +25,6 @@ from sklearn.datasets import fetch_20newsgroups
 import sklearn.metrics
 from sklearn.model_selection import train_test_split
 from sparsesvd import sparsesvd
-from video699.common import binomial_confidence_interval
 
 LOGGER = logging.getLogger(__name__)
 
@@ -616,6 +616,55 @@ def load_newsgroups():
         del newsgroups_test_X, newsgroups_test_y
 
     return newsgroups_train, newsgroups_validation, newsgroups_test
+
+
+def binomial_confidence_interval(num_successes, num_trials, significance_level):
+    """Computes a Wald confidence interval for the parameter p of a binomial random variable.
+    Given a sample of Bernoulli trials, we approximate an adjusted Wald confidence interval for the
+    population success probability :math:`p` of a binomial random variable using the central limit
+    theorem. The Wald interval was first described by [Simon12]_ and the adjustment for small
+    samples was proposed by [AgrestiCouli98]_.
+    .. [Simon12] Laplace, Pierre Simon (1812). Théorie analytique des probabilités (in French). p.
+       283.
+    .. [AgrestiCouli98] Agresti, Alan; Coull, Brent A. (1998). "Approximate is better than 'exact'
+       for interval estimation of binomial proportions". The American Statistician. 52: 119–126.
+       doi:10.2307/2685469.
+    Parameters
+    ----------
+    num_successes : int
+        The number of successful Bernoulli trials in the sample.
+    num_trials : int
+        The sample size.
+    significance_level : scalar
+        The likelihood that an observation of the random variable falls into the confidence
+        interval.
+    Returns
+    -------
+    pointwise_estimate : scalar
+        An unbiased pointwise estimate of the expected value of the binomial random variable.
+    lower_bound : scalar
+        The lower bound of the confidence interval.
+    upper_bound : scalar
+        The upper bound of the confidence interval.
+    Raises
+    ------
+    ValueError
+        If the number of trials is less than or equal to zero, or the number of successes is greater
+        than the number of trials.
+    """
+
+    if num_trials <= 0:
+        raise ValueError('The number of trials is less than or equal to zero')
+    if num_successes > num_trials:
+        raise ValueError('The number of successes is greater than the number of trials')
+
+    z = scipy.stats.norm.ppf(1 - significance_level / 2)
+    z2 = z**2
+    n = num_trials + z2
+    p = (num_successes + z2 / 2) / n
+    radius = z * sqrt(p * (1 - p) / n)
+    lower_bound, upper_bound = np.clip((p - radius, p + radius), 0, 1)
+    return (num_successes / num_trials, lower_bound, upper_bound)
 
 
 def grid_search(grid_specification):
