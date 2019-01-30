@@ -715,12 +715,12 @@ def cached_sparsesvd(basename, *args):
     filename = 'matrices/svd-{}.pkl.xz'.format(basename)
     try:
         with lzma.open(filename, 'rb') as f:
-            LOGGER.debug('Loading SVD matrices {}.'.format(filename))
+            LOGGER.debug('Loading SVD matrices from file {}.'.format(filename))
             ut, s, vt = pickle.load(f)
     except IOError:
         ut, s, vt = sparsesvd(*args)
         with lzma.open(filename, 'wb', preset=0) as f:
-            LOGGER.info('Saving SVD matrices {}.'.format(filename))
+            LOGGER.info('Saving SVD matrices to file {}.'.format(filename))
             pickle.dump((ut, s, vt), f, pickle.HIGHEST_PROTOCOL)
     return (ut, s, vt)
 
@@ -747,13 +747,13 @@ def cached_sparse_term_similarity_matrix(basename, *args, **kwargs):
     filename = 'matrices/termsim-{}.pkl.xz'.format(basename)
     try:
         with lzma.open(filename, 'rb') as f:
-            LOGGER.debug('Loading term similarity matrix {}.'.format(filename))
+            LOGGER.debug('Loading term similarity matrix from file {}.'.format(filename))
             term_matrix = pickle.load(f)
     except IOError:
         term_sims = SparseTermSimilarityMatrix(*args, **kwargs)
         term_matrix = term_sims.matrix
         with lzma.open(filename, 'wb', preset=0) as f:
-            LOGGER.info('Saving term similarity matrix {}.'.format(filename))
+            LOGGER.info('Saving term similarity matrix to file {}.'.format(filename))
             pickle.dump(term_matrix, f, pickle.HIGHEST_PROTOCOL)
     return term_matrix
 
