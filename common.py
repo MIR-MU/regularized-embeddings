@@ -1129,7 +1129,7 @@ class Dataset(object):
             dataset = Dataset(name, **pickle.load(f))
         return dataset
 
-    def to_file(self, basename):
+    def to_file(self):
         """Saves a dataset to a file.
 
         """
