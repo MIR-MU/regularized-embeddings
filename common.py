@@ -721,7 +721,7 @@ def cached_sparsesvd(basename, *args):
         ut, s, vt = sparsesvd(*args)
         with lzma.open(filename, 'wb', preset=0) as f:
             LOGGER.info('Saving SVD matrices to file {}.'.format(filename))
-            pickle.dump((ut, s, vt), f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump((ut, s, vt), f, 4)
     return (ut, s, vt)
 
 
@@ -754,7 +754,7 @@ def cached_sparse_term_similarity_matrix(basename, *args, **kwargs):
         term_matrix = term_sims.matrix
         with lzma.open(filename, 'wb', preset=0) as f:
             LOGGER.info('Saving term similarity matrix to file {}.'.format(filename))
-            pickle.dump(term_matrix, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(term_matrix, f, 4)
     return term_matrix
 
 
@@ -977,7 +977,7 @@ class ClassificationResult(object):
         filename = 'results/classification-{}.pkl.xz'.format(basename)
         with lzma.open(filename, 'wb', preset=0) as f:
             LOGGER.info('Saving classification result to file {}.'.format(filename))
-            pickle.dump(vars(self), f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(vars(self), f, 4)
 
     @staticmethod
     def from_similarities(similarities, source_dataset, target_dataset, params):
@@ -1137,7 +1137,7 @@ class Dataset(object):
         filename = 'corpora/{}.pkl.xz'.format(name)
         with lzma.open(filename, 'wb', preset=0) as f:
             LOGGER.info('Saving dataset to file {}.'.format(filename))
-            pickle.dump(vars(self), f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(vars(self), f, 4)
 
     def classify(self, validation, test, space='vsm', weights='bow', measure='inner_product', num_bits=32):
         """Performs classification using this dataset as the training set.
