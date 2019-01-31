@@ -1150,7 +1150,7 @@ class Dataset(object):
             The document representation used for the classification.
         weights : {'binary', 'bow', 'tfidf', 'bm25'}, optional
             The term weighting scheme used for the classification.
-        measure : {'inner_product', 'wmd', 'ntlm'}, optional
+        measure : {'inner_product', 'wmd'}, optional
             The similarity measure used for the classification.
         num_bits : {1, 32}, optional
             The number of bits used to construct Word2Bit embeddings.
