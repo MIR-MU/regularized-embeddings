@@ -87,7 +87,7 @@ corpora:
 	mkdir -p $@
 	cd $@ && wget http://mattmahoney.net/dc/enwik9.zip
 	cd $@ && wget http://mattmahoney.net/dc/text8.zip
-	cd $@ && unzip *.zip
+	cd $@ && parallel --halt=2 -- unzip ::: *.zip
 	cd $@ && perl ../wikifil.pl enwik9 > fil9
 
 matrices:
