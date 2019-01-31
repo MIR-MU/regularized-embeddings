@@ -848,13 +848,44 @@ def pivot_worker(args):
     return pivoted_document
 
 
-def translate_worker(args):
-    """Translates a document from a source dictionary to a target dictionary.
+def translate_embeddings(embeddings, dictionary):
+    """Translates word embeddings into a word embedding matrix using a dictionary.
+
+    Parameters
+    ----------
+    embeddings : gensim.similarities.KeyedVectors
+        Word embeddings.
+    dictionary : gensim.corpora.Dictionary
+        A dictionary that specifies the order of words in an embedding matrix.
+
+    Returns
+    -------
+    embedding_matrix : numpy.ndarray
+        An embedding matrix. Embeddings for words that are not in the
+        dictionary are not included in the matrix. Rows corresponding to words
+        with no embeddings are filled with zeros.
+    """
+
+    source_matrix = embeddings.vectors
+    target_dtype = source_matrix.dtype
+    target_shape = (len(dictionary), source_matrix.shape[1])
+    target_matrix = np.zeros(target_shape, dtype=target_dtype)
+    source_rows, target_rows = zip(*(
+        (embeddings.vocab[dictionary[term_id]].index, term_id)
+        for term_id in sorted(dictionary.keys())
+        if dictionary[term_id] in embeddings.vocab
+    ))
+    target_matrix[target_rows, :] = source_matrix[source_rows, :]
+    return target_matrix
+
+
+def translate_document_worker(args):
+    """Translates a BOW document from a source dictionary to a target dictionary.
 
     Parameters
     ----------
     document : list of list of (int, float)
-        A document.
+        A document in the bag of words (BOW) representation.
     source_dictionary : gensim.corpora.Dictionary
         The source dictionary.
     target_dictionary : gensim.corpora.Dictionary
@@ -1148,7 +1179,7 @@ class Dataset(object):
             The validation set.
         test : Dataset
             The test set.
-        space : {'vsm', 'sparse_soft_vsm', 'dense_soft_vsm', 'lsi', 'lda'}, optional
+        space : {'vsm', 'sparse_soft_vsm', 'dense_soft_vsm', 'lsi'}, optional
             The document representation used for the classification.
         weights : {'binary', 'bow', 'tfidf', 'bm25'}, optional
             The term weighting scheme used for the classification.
@@ -1162,26 +1193,24 @@ class Dataset(object):
         train = self
 
         LOGGER.debug('Preprocessing the datasets')
-        if space in ('vsm', 'lsi', 'sparse_soft_vsm'):
-            if weights == 'tfidf':
-                grid_specification.update({'slope': np.linspace(0, 1, 11)})
-            elif weights == 'bm25':
-                grid_specification.update({'k1': np.linspace(1.2, 2, 9)})
+        if weights == 'tfidf':
+            grid_specification.update({'slope': np.linspace(0, 1, 11)})
+        elif weights == 'bm25':
+            grid_specification.update({'k1': np.linspace(1.2, 2, 9)})
 
-            if space == 'sparse_soft_vsm':
-                grid_specification.update({
-                    'symmetric': (True, False),
-                    'positive_definite': (True, False),
-                    'tfidf': (True, False),
-                    'nonzero_limit': (100, 200, 300, 400, 500, 600),
-                })
+        if space == 'sparse_soft_vsm':
+            grid_specification.update({
+                'symmetric': (True, False),
+                'positive_definite': (True, False),
+                'tfidf': (True, False),
+                'nonzero_limit': (100, 200, 300, 400, 500, 600),
+            })
 
         LOGGER.debug('Performing a grid search')
         for grid_params in grid_search(grid_specification):
             params.update(grid_params)
-            if space in ('vsm', 'sparse_soft_vsm', 'lsi'):
-                if measure == 'inner_product':
-                    doc_sims = train.inner_product(validation, 'classification', params)
+            if measure == 'inner_product':
+                doc_sims = train.inner_product(validation, 'classification', params)
             results = []
             for k in range(1, 20):
                 params['k'] = k
@@ -1191,9 +1220,8 @@ class Dataset(object):
 
         LOGGER.debug('Testing the performance')
         params = best_result.params
-        if space in ('vsm', 'sparse_soft_vsm', 'lsi'):
-            if measure == 'inner_product':
-                doc_sims = train.inner_product(test, 'classification', params)
+        if measure == 'inner_product':
+            doc_sims = train.inner_product(test, 'classification', params)
         result = ClassificationResult.from_similarities(doc_sims, train, test, params)
         return result
 
@@ -1218,8 +1246,15 @@ class Dataset(object):
             The inner product between the two datasets.
         """
 
-        weights = params['weights']
         space = params['space']
+        if space == 'sparse_soft_vsm':
+            num_bits = params['num_bits']
+            tfidf = params['tfidf']
+            symmetric = params['symmetric']
+            positive_definite = params['positive_definite']
+            nonzero_limit = params['nonzero_limit']
+
+        weights = params['weights']
         if weights == 'tfidf':
             slope = params['slope']
         elif weights == 'bm25':
@@ -1238,7 +1273,7 @@ class Dataset(object):
                 repeat(collection_bm25),
                 collection_bm25.doc_len,
             ))
-            collection_corpus = map(translate_worker, zip(
+            collection_corpus = map(translate_document_worker, zip(
                 collection_corpus,
                 repeat(collection.dictionary),
                 repeat(common_corpus.dictionary),
@@ -1248,7 +1283,11 @@ class Dataset(object):
                 params['collection_corpus'] = list(map(common_corpus.dictionary.doc2bow, collection.corpus))
             collection_corpus = params['collection_corpus']
             if weights == 'bow':
-                collection_corpus = map(unitvec, collection_corpus)
+                if space == 'dense_soft_vsm':
+                    norm = 'l1'
+                else:
+                    norm = 'l2'
+                collection_corpus = map(lambda document: unitvec(document, norm), collection_corpus)
             elif weights == 'binary':
                 collection_corpus = map(binarize_worker, collection_corpus)
             elif weights == 'bm25':
@@ -1273,7 +1312,7 @@ class Dataset(object):
                 repeat(collection_bm25),
                 collection_bm25.doc_len,
             ))
-            query_corpus = map(translate_worker, zip(
+            query_corpus = map(translate_document_worker, zip(
                 query_corpus,
                 repeat(collection.dictionary),
                 repeat(common_corpus.dictionary),
@@ -1284,42 +1323,45 @@ class Dataset(object):
             query_corpus = params['query_corpus']
             if weights in ('binary', 'bm25', 'tfidf'):
                 query_corpus = map(binarize_worker, query_corpus)
-            elif weights == 'bow':
+            elif weights == 'bow' and space != 'dense_soft_vsm':
                 query_corpus = map(unitvec, query_corpus)
         query_corpus = list(query_corpus)
         query_matrix = corpus2csc(query_corpus, len(common_corpus.dictionary))
 
         if space == 'vsm':
             doc_sims = collection_matrix.T.dot(query_matrix).T.todense()
-        elif space == 'lsi':
-            if weights == 'tfidf':
-                weights_str = 'tfidf_{:.1}'.format(slope)
-            elif weights == 'bm25':
-                weights_str = 'bm25_{:.1}'.format(k1)
-            else:
-                weights_str = weights
-            lsi_basename = '{dataset_name}-{task}-{weights_str}'.format(
-                dataset_name=collection.name,
-                task=task,
-                weights_str=weights_str,
-            )
-            ut, s, vt = cached_sparsesvd(lsi_basename, collection_matrix, 500)
-            collection_matrix = vt
-            query_matrix = np.diag(1 / s).dot(ut.dot(query_matrix.todense()))
-            del ut
-            collection_matrix_norm = np.multiply(collection_matrix.T, collection_matrix.T).sum(axis=1).T
-            query_matrix_norm = np.multiply(query_matrix.T, query_matrix.T).sum(axis=1).T
-            collection_matrix = np.multiply(collection_matrix, 1 / np.sqrt(collection_matrix_norm))
-            query_matrix = np.multiply(query_matrix, 1 / np.sqrt(query_matrix_norm))
-            collection_matrix[collection_matrix == np.inf] = 0.0
-            query_matrix[query_matrix == np.inf] = 0.0
+        elif space in ('lsi', 'dense_soft_vsm'):
+            if space == 'lsi':
+                if weights == 'tfidf':
+                    weights_str = 'tfidf_{:.1}'.format(slope)
+                elif weights == 'bm25':
+                    weights_str = 'bm25_{:.1}'.format(k1)
+                else:
+                    weights_str = weights
+                lsi_basename = '{dataset_name}-{task}-{weights_str}'.format(
+                    dataset_name=collection.name,
+                    task=task,
+                    weights_str=weights_str,
+                )
+                ut, s, vt = cached_sparsesvd(lsi_basename, collection_matrix, 500)
+                collection_matrix = vt
+                query_matrix = np.diag(1 / s).dot(
+                    scipy.sparse.dot(ut, query_matrix).todense()
+                )
+                del ut
+            elif space == 'dense_soft_vsm':
+                embedding_matrix = common_embedding_matrices[num_bits]
+                collection_matrix = scipy.sparse.dot(embedding_matrix.T, collection_matrix).todense()
+                query_matrix = scipy.sparse.dot(embedding_matrix.T, query_matrix).todense()
+            if space != 'dense_soft_vsm' or weights != 'bow':
+                collection_matrix_norm = np.multiply(collection_matrix.T, collection_matrix.T).sum(axis=1).T
+                query_matrix_norm = np.multiply(query_matrix.T, query_matrix.T).sum(axis=1).T
+                collection_matrix = np.multiply(collection_matrix, 1 / np.sqrt(collection_matrix_norm))
+                query_matrix = np.multiply(query_matrix, 1 / np.sqrt(query_matrix_norm))
+                collection_matrix[collection_matrix == np.inf] = 0.0
+                query_matrix[query_matrix == np.inf] = 0.0
             doc_sims = collection_matrix.T.dot(query_matrix).T
         elif space == 'sparse_soft_vsm':
-            num_bits = params['num_bits']
-            tfidf = params['tfidf']
-            symmetric = params['symmetric']
-            positive_definite = params['positive_definite']
-            nonzero_limit = params['nonzero_limit']
             term_basename = '{num_bits}-{tfidf}-{symmetric}-{positive_definite}-{nonzero_limit}'.format(
                 num_bits=num_bits,
                 tfidf=tfidf,
@@ -1327,7 +1369,7 @@ class Dataset(object):
                 positive_definite=positive_definite,
                 nonzero_limit=nonzero_limit,
             )
-            term_index = WordEmbeddingSimilarityIndex(common_vectors[num_bits])
+            term_index = WordEmbeddingSimilarityIndex(common_embeddings[num_bits])
             term_matrix = cached_sparse_term_similarity_matrix(
                 term_basename,
                 term_index,
