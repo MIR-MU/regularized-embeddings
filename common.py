@@ -914,6 +914,8 @@ class ClassificationResult(object):
     """
     def __init__(self, confusion_matrix, params, **kwargs):
         self.confusion_matrix = confusion_matrix
+        del params['collection_corpus']
+        del params['query_corpus']
         self.params = params
         num_successes = np.diag(confusion_matrix).sum()
         num_trials = np.sum(confusion_matrix)
@@ -1226,7 +1228,9 @@ class Dataset(object):
         collection = self
         collection_bm25 = collection.bm25
         if weights == 'tfidf':
-            collection_corpus = map(collection.dictionary.doc2bow, collection.corpus)
+            if 'collection_corpus' not in params:
+                params['collection_corpus'] = list(map(collection.dictionary.doc2bow, collection.corpus))
+            collection_corpus = params['collection_corpus']
             collection_tfidf = TfidfModel(dictionary=collection.dictionary, smartirs='dtn')
             collection_corpus = map(pivot_worker, zip(
                 collection_tfidf[collection_corpus],
@@ -1240,7 +1244,9 @@ class Dataset(object):
                 repeat(common_corpus.dictionary),
             ))
         else:
-            collection_corpus = map(common_corpus.dictionary.doc2bow, collection.corpus)
+            if 'collection_corpus' not in params:
+                params['collection_corpus'] = list(map(common_corpus.dictionary.doc2bow, collection.corpus))
+            collection_corpus = params['collection_corpus']
             if weights == 'bow':
                 collection_corpus = map(unitvec, collection_corpus)
             elif weights == 'binary':
@@ -1258,7 +1264,9 @@ class Dataset(object):
         collection_matrix = corpus2csc(collection_corpus, len(common_corpus.dictionary))
 
         if weights == 'tfidf' and task == 'classification':
-            query_corpus = map(collection.dictionary.doc2bow, queries.corpus)
+            if 'query_corpus' not in params:
+                params['query_corpus'] = list(map(collection.dictionary.doc2bow, queries.corpus))
+            query_corpus = params['query_corpus']
             query_corpus = map(pivot_worker, zip(
                 collection_tfidf[query_corpus],
                 repeat(slope),
@@ -1271,7 +1279,9 @@ class Dataset(object):
                 repeat(common_corpus.dictionary),
             ))
         else:
-            query_corpus = map(common_corpus.dictionary.doc2bow, queries.corpus)
+            if 'query_corpus' not in params:
+                params['query_corpus'] = list(map(common_corpus.dictionary.doc2bow, queries.corpus))
+            query_corpus = params['query_corpus']
             if weights in ('binary', 'bm25', 'tfidf'):
                 query_corpus = map(binarize_worker, query_corpus)
             elif weights == 'bow':
