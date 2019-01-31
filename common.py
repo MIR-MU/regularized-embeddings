@@ -914,8 +914,6 @@ class ClassificationResult(object):
     """
     def __init__(self, confusion_matrix, params, **kwargs):
         self.confusion_matrix = confusion_matrix
-        del params['collection_corpus']
-        del params['query_corpus']
         self.params = params
         num_successes = np.diag(confusion_matrix).sum()
         num_trials = np.sum(confusion_matrix)
@@ -943,6 +941,8 @@ class ClassificationResult(object):
 
         confusion_matrix = sklearn.metrics.confusion_matrix(y_true, y_pred)
         params = dict(params)
+        del params['collection_corpus']
+        del params['query_corpus']
         result = ClassificationResult(confusion_matrix, params)
         return result
 
