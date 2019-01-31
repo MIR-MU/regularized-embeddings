@@ -74,7 +74,7 @@ def load_twitter():
             shuffle=True,
             random_state=42,
         )
-        twitter_test = Dataset.from_documents(twitter_test_X, twitter_test_y, 'twitter_test')
+        twitter_test = Dataset.from_documents(twitter_test_X, 'twitter_test', twitter_test_y)
         twitter_test.to_file()
         del twitter_X, twitter_y
         del twitter_test_X, twitter_test_y
@@ -90,9 +90,9 @@ def load_twitter():
             test_size=0.2,
             shuffle=False,
         )
-        twitter_train = Dataset.from_documents(twitter_train_X, twitter_train_y, 'twitter_train')
+        twitter_train = Dataset.from_documents(twitter_train_X, 'twitter_train', twitter_train_y)
         twitter_train.to_file()
-        twitter_validation = Dataset.from_documents(twitter_validation_X, twitter_validation_y, 'twitter_validation')
+        twitter_validation = Dataset.from_documents(twitter_validation_X, 'twitter_validation', twitter_validation_y)
         twitter_validation.to_file()
         del twitter_train_and_validation_X, twitter_train_and_validation_y
         del twitter_train_X, twitter_train_y
@@ -165,7 +165,7 @@ def load_reuters():
                 reuters_train_and_validation_y.extend(local_reuters_train_and_validation_y)
                 reuters_test_X.extend(local_reuters_test_X)
                 reuters_test_y.extend(local_reuters_test_y)
-        reuters_test = Dataset.from_documents(reuters_test_X, reuters_test_y, 'reuters_test')
+        reuters_test = Dataset.from_documents(reuters_test_X, 'reuters_test', reuters_test_y)
         reuters_test.to_file()
         del reuters_test_X, reuters_test_y
 
@@ -181,9 +181,9 @@ def load_reuters():
             shuffle=True,
             random_state=42,
         )
-        reuters_train = Dataset.from_documents(reuters_train_X, reuters_train_y, 'reuters_train')
+        reuters_train = Dataset.from_documents(reuters_train_X, 'reuters_train', reuters_train_y)
         reuters_train.to_file()
-        reuters_validation = Dataset.from_documents(reuters_validation_X, reuters_validation_y, 'reuters_validation')
+        reuters_validation = Dataset.from_documents(reuters_validation_X, 'reuters_validation', reuters_validation_y)
         reuters_validation.to_file()
         del reuters_train_and_validation_X, reuters_train_and_validation_y
         del reuters_train_X, reuters_train_y
@@ -252,7 +252,7 @@ def load_ohsumed():
             shuffle=True,
             random_state=42,
         )
-        ohsumed_test = Dataset.from_documents(ohsumed_test_X, ohsumed_test_y, 'ohsumed_test')
+        ohsumed_test = Dataset.from_documents(ohsumed_test_X, 'ohsumed_test', ohsumed_test_y)
         ohsumed_test.to_file()
         del ohsumed_X, ohsumed_y
         del ohsumed_test_X, ohsumed_test_y
@@ -268,9 +268,9 @@ def load_ohsumed():
             test_size=0.2,
             shuffle=False,
         )
-        ohsumed_train = Dataset.from_documents(ohsumed_train_X, ohsumed_train_y, 'ohsumed_train')
+        ohsumed_train = Dataset.from_documents(ohsumed_train_X, 'ohsumed_train', ohsumed_train_y)
         ohsumed_train.to_file()
-        ohsumed_validation = Dataset.from_documents(ohsumed_validation_X, ohsumed_validation_y, 'ohsumed_validation')
+        ohsumed_validation = Dataset.from_documents(ohsumed_validation_X, 'ohsumed_validation', ohsumed_validation_y)
         ohsumed_validation.to_file()
         del ohsumed_train_and_validation_X, ohsumed_train_and_validation_y
         del ohsumed_train_X, ohsumed_train_y
@@ -340,8 +340,8 @@ def load_bbcsport():
         )
         bbcsport_test = Dataset.from_documents(
             bbcsport_test_X,
-            bbcsport_test_y,
             'bbcsport_test',
+            bbcsport_test_y,
         )
         bbcsport_test.to_file()
         del bbcsport_X, bbcsport_y
@@ -359,14 +359,14 @@ def load_bbcsport():
         )
         bbcsport_train = Dataset.from_documents(
             bbcsport_train_X,
-            bbcsport_train_y,
             'bbcsport_train',
+            bbcsport_train_y,
         )
         bbcsport_train.to_file()
         bbcsport_validation = Dataset.from_documents(
             bbcsport_validation_X,
-            bbcsport_validation_y,
             'bbcsport_validation',
+            bbcsport_validation_y,
         )
         bbcsport_validation.to_file()
         del bbcsport_train_and_validation_X, bbcsport_train_and_validation_y
@@ -435,7 +435,7 @@ def load_bbc():
             shuffle=True,
             random_state=42,
         )
-        bbc_test = Dataset.from_documents(bbc_test_X, bbc_test_y, 'bbc_test')
+        bbc_test = Dataset.from_documents(bbc_test_X, 'bbc_test', bbc_test_y)
         bbc_test.to_file()
         del bbc_X, bbc_y
         del bbc_test_X, bbc_test_y
@@ -451,9 +451,9 @@ def load_bbc():
             test_size=0.2,
             shuffle=False,
         )
-        bbc_train = Dataset.from_documents(bbc_train_X, bbc_train_y, 'bbc_train')
+        bbc_train = Dataset.from_documents(bbc_train_X, 'bbc_train', bbc_train_y)
         bbc_train.to_file()
-        bbc_validation = Dataset.from_documents(bbc_validation_X, bbc_validation_y, 'bbc_validation')
+        bbc_validation = Dataset.from_documents(bbc_validation_X, 'bbc_validation', bbc_validation_y)
         bbc_validation.to_file()
         del bbc_train_and_validation_X, bbc_train_and_validation_y
         del bbc_train_X, bbc_train_y
@@ -529,7 +529,7 @@ def load_amazon():
             shuffle=True,
             random_state=42,
         )
-        amazon_test = Dataset.from_documents(amazon_test_X, amazon_test_y, 'amazon_test')
+        amazon_test = Dataset.from_documents(amazon_test_X, 'amazon_test', amazon_test_y)
         amazon_test.to_file()
         del amazon_X, amazon_y
         del amazon_test_X, amazon_test_y
@@ -545,9 +545,9 @@ def load_amazon():
             test_size=0.2,
             shuffle=False,
         )
-        amazon_train = Dataset.from_documents(amazon_train_X, amazon_train_y, 'amazon_train')
+        amazon_train = Dataset.from_documents(amazon_train_X, 'amazon_train', amazon_train_y)
         amazon_train.to_file()
-        amazon_validation = Dataset.from_documents(amazon_validation_X, amazon_validation_y, 'amazon_validation')
+        amazon_validation = Dataset.from_documents(amazon_validation_X, 'amazon_validation', amazon_validation_y)
         amazon_validation.to_file()
         del amazon_train_and_validation_X, amazon_train_and_validation_y
         del amazon_train_X, amazon_train_y
@@ -589,14 +589,14 @@ def load_newsgroups():
         )
         newsgroups_train = Dataset.from_documents(
             newsgroups_train_X,
-            newsgroups_train_y,
             'newsgroups_train',
+            newsgroups_train_y,
         )
         newsgroups_train.to_file()
         newsgroups_validation = Dataset.from_documents(
             newsgroups_validation_X,
-            newsgroups_validation_y,
             'newsgroups_validation',
+            newsgroups_validation_y,
         )
         newsgroups_validation.to_file()
         del newsgroups_train_and_validation_raw
@@ -608,8 +608,8 @@ def load_newsgroups():
         newsgroups_test_y = newsgroups_test_raw.target
         newsgroups_test = Dataset.from_documents(
             newsgroups_test_X,
-            newsgroups_test_y,
             'newsgroups_test',
+            newsgroups_test_y,
         )
         newsgroups_test.to_file()
         del newsgroups_test_raw
