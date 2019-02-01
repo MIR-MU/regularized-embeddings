@@ -1216,7 +1216,7 @@ class Dataset(object):
         LOGGER.debug('Performing a grid search')
         for grid_params in grid_search(grid_specification):
             params.update(grid_params)
-            doc_sims = train.similarities(validation, params)
+            doc_sims = train.get_similarities(validation, params)
             results = []
             for k in range(1, 20):
                 params['k'] = k
@@ -1226,11 +1226,11 @@ class Dataset(object):
 
         LOGGER.debug('Testing the performance')
         params = best_result.params
-        doc_sims = train.similarities(test, params)
+        doc_sims = train.get_similarities(test, params)
         result = ClassificationResult.from_similarities(doc_sims, train, test, params)
         return result
 
-    def similarities(self, queries, task, params):
+    def get_similarities(self, queries, params):
         """Computes the similarities between two datasets.
 
         Parameters
