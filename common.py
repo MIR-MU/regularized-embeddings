@@ -25,6 +25,7 @@ from sklearn.datasets import fetch_20newsgroups
 import sklearn.metrics
 from sklearn.model_selection import train_test_split
 from sparsesvd import sparsesvd
+from wmd import WMD
 
 LOGGER = logging.getLogger(__name__)
 
@@ -1188,7 +1189,13 @@ class Dataset(object):
         num_bits : {1, 32}, optional
             The number of bits used to construct Word2Bit embeddings.
         """
-        params = {'space': space, 'weights': weights, 'measure': measure, 'num_bits': num_bits}
+        params = {
+            'space': space,
+            'weights': weights,
+            'measure': measure,
+            'num_bits': num_bits,
+            'task': 'classification',
+        }
         grid_specification = {}
         train = self
 
@@ -1209,8 +1216,7 @@ class Dataset(object):
         LOGGER.debug('Performing a grid search')
         for grid_params in grid_search(grid_specification):
             params.update(grid_params)
-            if measure == 'inner_product':
-                doc_sims = train.inner_product(validation, 'classification', params)
+            doc_sims = train.similarities(validation, params)
             results = []
             for k in range(1, 20):
                 params['k'] = k
@@ -1220,35 +1226,28 @@ class Dataset(object):
 
         LOGGER.debug('Testing the performance')
         params = best_result.params
-        if measure == 'inner_product':
-            doc_sims = train.inner_product(test, 'classification', params)
+        doc_sims = train.similarities(test, params)
         result = ClassificationResult.from_similarities(doc_sims, train, test, params)
         return result
 
-    def inner_product(self, queries, task, params):
-        """Computes the inner product between two datasets.
+    def similarities(self, queries, task, params):
+        """Computes the similarities between two datasets.
 
         Parameters
         ----------
         queries : Dataset
             A dataset of queries.
-        task : {'classification', 'adhoc_ir'}
-            The intent of the inner product (text classification or ad-hoc
-            information retrieval), which affects the tf-idf weighting scheme
-            (dtb.dtb for text classification and dtb.nnn for ad-hoc information
-            retrieval).
         params : dict
             The parameters of the vector space model.
 
         Returns
         -------
-        inner_product : np.matrix
-            The inner product between the two datasets.
+        doc_similarities : np.matrix
+            The similarities between the two datasets.
         """
 
         space = params['space']
         if space == 'sparse_soft_vsm':
-            num_bits = params['num_bits']
             tfidf = params['tfidf']
             symmetric = params['symmetric']
             positive_definite = params['positive_definite']
@@ -1259,6 +1258,10 @@ class Dataset(object):
             slope = params['slope']
         elif weights == 'bm25':
             k1 = params['k1']
+
+        task = params['task']
+        measure = params['measure']
+        num_bits = params['num_bits']
 
         collection = self
         collection_bm25 = collection.bm25
@@ -1276,11 +1279,11 @@ class Dataset(object):
             collection_corpus = map(translate_document_worker, zip(
                 collection_corpus,
                 repeat(collection.dictionary),
-                repeat(common_corpus.dictionary),
+                repeat(common_dictionary),
             ))
         else:
             if 'collection_corpus' not in params:
-                params['collection_corpus'] = list(map(common_corpus.dictionary.doc2bow, collection.corpus))
+                params['collection_corpus'] = list(map(common_dictionary.doc2bow, collection.corpus))
             collection_corpus = params['collection_corpus']
             if weights == 'bow':
                 if space == 'dense_soft_vsm':
@@ -1297,10 +1300,9 @@ class Dataset(object):
                     repeat(0.25),
                     repeat(collection_bm25),
                     collection_bm25.doc_len,
-                    repeat(common_corpus.dictionary),
+                    repeat(common_dictionary),
                 ))
         collection_corpus = list(collection_corpus)
-        collection_matrix = corpus2csc(collection_corpus, len(common_corpus.dictionary))
 
         if weights == 'tfidf' and task == 'classification':
             if 'query_corpus' not in params:
@@ -1315,77 +1317,94 @@ class Dataset(object):
             query_corpus = map(translate_document_worker, zip(
                 query_corpus,
                 repeat(collection.dictionary),
-                repeat(common_corpus.dictionary),
+                repeat(common_dictionary),
             ))
         else:
             if 'query_corpus' not in params:
-                params['query_corpus'] = list(map(common_corpus.dictionary.doc2bow, queries.corpus))
+                params['query_corpus'] = list(map(common_dictionary.doc2bow, queries.corpus))
             query_corpus = params['query_corpus']
             if weights in ('binary', 'bm25', 'tfidf'):
                 query_corpus = map(binarize_worker, query_corpus)
             elif weights == 'bow' and space != 'dense_soft_vsm':
                 query_corpus = map(unitvec, query_corpus)
         query_corpus = list(query_corpus)
-        query_matrix = corpus2csc(query_corpus, len(common_corpus.dictionary))
 
-        if space == 'vsm':
-            doc_sims = collection_matrix.T.dot(query_matrix).T.todense()
-        elif space in ('lsi', 'dense_soft_vsm'):
-            if space == 'lsi':
-                if weights == 'tfidf':
-                    weights_str = 'tfidf_{:.1}'.format(slope)
-                elif weights == 'bm25':
-                    weights_str = 'bm25_{:.1}'.format(k1)
-                else:
-                    weights_str = weights
-                lsi_basename = '{dataset_name}-{task}-{weights_str}'.format(
-                    dataset_name=collection.name,
-                    task=task,
-                    weights_str=weights_str,
+        if measure == 'wmd':
+            embedding_matrix = common_embedding_matrices[num_bits]
+            corpus = {
+                document_id: tuple(chain((None,), zip(*document) if document else ((), ())))
+                for document_id, document in enumerate(chain(collection_corpus, query_corpus))
+            }
+            wmd = WMD(embedding_matrix, corpus, vocabulary_min=1)
+            doc_sims = np.zeros((len(query_corpus), len(collection_corpus)))
+            for row_number in range(len(query_corpus)):
+                query_id = len(collection_corpus) + row_number
+                column_numbers, column_values = zip(*(
+                    (document_id, similarity)
+                    for document_id, similarity in wmd.nearest_neighbors(query_id, k=20)
+                    if document_id < len(collection_corpus)
+                ))
+                doc_sims[row_number, column_numbers] = column_values
+        elif measure == 'inner_product':
+            collection_matrix = corpus2csc(collection_corpus, len(common_dictionary))
+            query_matrix = corpus2csc(query_corpus, len(common_dictionary))
+
+            if space == 'vsm':
+                doc_sims = collection_matrix.T.dot(query_matrix).T.todense()
+            elif space in ('lsi', 'dense_soft_vsm'):
+                if space == 'lsi':
+                    if weights == 'tfidf':
+                        weights_str = 'tfidf_{:.1}'.format(slope)
+                    elif weights == 'bm25':
+                        weights_str = 'bm25_{:.1}'.format(k1)
+                    else:
+                        weights_str = weights
+                    lsi_basename = '{dataset_name}-{task}-{weights_str}'.format(
+                        dataset_name=collection.name,
+                        task=task,
+                        weights_str=weights_str,
+                    )
+                    ut, s, vt = cached_sparsesvd(lsi_basename, collection_matrix, 500)
+                    collection_matrix = vt
+                    query_matrix = np.diag(1 / s).dot(scipy.sparse.csc_matrix.dot(ut, query_matrix))
+                    del ut
+                elif space == 'dense_soft_vsm':
+                    embedding_matrix = common_embedding_matrices[num_bits]
+                    collection_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, collection_matrix)
+                    query_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, query_matrix)
+                if space != 'dense_soft_vsm' or weights != 'bow':
+                    collection_matrix_norm = np.multiply(collection_matrix.T, collection_matrix.T).sum(axis=1).T
+                    query_matrix_norm = np.multiply(query_matrix.T, query_matrix.T).sum(axis=1).T
+                    collection_matrix = np.multiply(collection_matrix, 1 / np.sqrt(collection_matrix_norm))
+                    query_matrix = np.multiply(query_matrix, 1 / np.sqrt(query_matrix_norm))
+                    collection_matrix[collection_matrix == np.inf] = 0.0
+                    query_matrix[query_matrix == np.inf] = 0.0
+                doc_sims = collection_matrix.T.dot(query_matrix).T
+            elif space == 'sparse_soft_vsm':
+                term_basename = '{num_bits}-{tfidf}-{symmetric}-{positive_definite}-{nonzero_limit}'.format(
+                    num_bits=num_bits,
+                    tfidf=tfidf,
+                    symmetric=symmetric,
+                    positive_definite=positive_definite,
+                    nonzero_limit=nonzero_limit,
                 )
-                ut, s, vt = cached_sparsesvd(lsi_basename, collection_matrix, 500)
-                collection_matrix = vt
-                query_matrix = np.diag(1 / s).dot(
-                    scipy.sparse.dot(ut, query_matrix).todense()
+                term_index = WordEmbeddingSimilarityIndex(common_embeddings[num_bits])
+                term_matrix = cached_sparse_term_similarity_matrix(
+                    term_basename,
+                    term_index,
+                    common_dictionary,
+                    tfidf=common_tfidf if tfidf else None,
+                    symmetric=symmetric,
+                    positive_definite=positive_definite,
+                    nonzero_limit=nonzero_limit,
                 )
-                del ut
-            elif space == 'dense_soft_vsm':
-                embedding_matrix = common_embedding_matrices[num_bits]
-                collection_matrix = scipy.sparse.dot(embedding_matrix.T, collection_matrix).todense()
-                query_matrix = scipy.sparse.dot(embedding_matrix.T, query_matrix).todense()
-            if space != 'dense_soft_vsm' or weights != 'bow':
-                collection_matrix_norm = np.multiply(collection_matrix.T, collection_matrix.T).sum(axis=1).T
-                query_matrix_norm = np.multiply(query_matrix.T, query_matrix.T).sum(axis=1).T
-                collection_matrix = np.multiply(collection_matrix, 1 / np.sqrt(collection_matrix_norm))
-                query_matrix = np.multiply(query_matrix, 1 / np.sqrt(query_matrix_norm))
+                collection_matrix_norm = collection_matrix.T.dot(term_matrix).multiply(collection_matrix.T).sum(axis=1).T
+                query_matrix_norm = query_matrix.T.dot(term_matrix).multiply(query_matrix.T).sum(axis=1).T
+                collection_matrix = collection_matrix.multiply(sparse.csr_matrix(1 / np.sqrt(collection_matrix_norm)))
+                query_matrix = query_matrix.multiply(sparse.csr_matrix(1 / np.sqrt(query_matrix_norm)))
                 collection_matrix[collection_matrix == np.inf] = 0.0
                 query_matrix[query_matrix == np.inf] = 0.0
-            doc_sims = collection_matrix.T.dot(query_matrix).T
-        elif space == 'sparse_soft_vsm':
-            term_basename = '{num_bits}-{tfidf}-{symmetric}-{positive_definite}-{nonzero_limit}'.format(
-                num_bits=num_bits,
-                tfidf=tfidf,
-                symmetric=symmetric,
-                positive_definite=positive_definite,
-                nonzero_limit=nonzero_limit,
-            )
-            term_index = WordEmbeddingSimilarityIndex(common_embeddings[num_bits])
-            term_matrix = cached_sparse_term_similarity_matrix(
-                term_basename,
-                term_index,
-                common_corpus.dictionary,
-                tfidf=common_tfidf if tfidf else None,
-                symmetric=symmetric,
-                positive_definite=positive_definite,
-                nonzero_limit=nonzero_limit,
-            )
-            collection_matrix_norm = collection_matrix.T.dot(term_matrix).multiply(collection_matrix.T).sum(axis=1).T
-            query_matrix_norm = query_matrix.T.dot(term_matrix).multiply(query_matrix.T).sum(axis=1).T
-            collection_matrix = collection_matrix.multiply(sparse.csr_matrix(1 / np.sqrt(collection_matrix_norm)))
-            query_matrix = query_matrix.multiply(sparse.csr_matrix(1 / np.sqrt(query_matrix_norm)))
-            collection_matrix[collection_matrix == np.inf] = 0.0
-            query_matrix[query_matrix == np.inf] = 0.0
-            doc_sims = collection_matrix.T.dot(term_matrix).dot(query_matrix).T.todense()
+                doc_sims = collection_matrix.T.dot(term_matrix).dot(query_matrix).T.todense()
 
         return doc_sims
 
@@ -1397,10 +1416,15 @@ class Dataset(object):
 #     with open('corpora/fil9', 'rt') as f:
 #         common_corpus = Dataset.from_documents(f, 'fil9')
 #         common_corpus.to_file()
-# common_tfidf = TfidfModel(dictionary=common_corpus.dictionary, smartirs='dtn')
+# common_dictionary = common_corpus.dictionary
+# common_tfidf = TfidfModel(dictionary=common_dictionary, smartirs='dtn')
 
 # subprocess.call('make vectors', shell=True)
-common_vectors = {
+common_embeddings = {
     # 1: KeyedVectors.load_word2vec_format('vectors/1b_1000d_vectors_e50_nonbin', binary=False),
     # 32: KeyedVectors.load_word2vec_format('vectors/32b_1000d_vectors_e50_nonbin', binary=False),
+}
+common_embedding_matrices = {
+    # num_bits: translate_embeddings(embeddings, common_dictionary)
+    # for num_bits, embeddings in common_embeddings.items()
 }
