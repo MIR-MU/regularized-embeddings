@@ -1336,7 +1336,7 @@ class Dataset(object):
                 for document_id, document in enumerate(chain(collection_corpus, query_corpus))
             }
             wmd = WMD(embedding_matrix, corpus, vocabulary_min=1)
-            doc_sims = np.zeros((len(query_corpus), len(collection_corpus)))
+            doc_sims = np.ones((len(query_corpus), len(collection_corpus))) / 0
             for row_number in range(len(query_corpus)):
                 query_id = len(collection_corpus) + row_number
                 column_numbers, column_values = zip(*(
@@ -1345,6 +1345,7 @@ class Dataset(object):
                     if document_id < len(collection_corpus)
                 ))
                 doc_sims[row_number, column_numbers] = column_values
+            doc_sims = -doc_sims
         elif measure == 'inner_product':
             collection_matrix = corpus2csc(collection_corpus, len(common_dictionary))
             query_matrix = corpus2csc(query_corpus, len(common_dictionary))
