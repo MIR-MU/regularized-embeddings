@@ -15,3 +15,8 @@ Use Python 3.4+ with Pip to install the required Python packages:
 Open the Jupyter notebook with the experimental code:
 
     jupyter-notebook classification.ipynb
+
+To reproduce our results, uncomment the last 20 lines in file `common.py`,
+remove all files in the `results` directory, and run all the cells in the
+Jupyter notebook. You will require GNU Make, Perl 5, GNU Parallel, GIT,
+GNU Wget, Unzip, and GNU Coreutils (see the file `Makefile` for details).

@@ -12,7 +12,7 @@ import subprocess
 
 from gensim.corpora import Dictionary
 from gensim.matutils import corpus2csc, unitvec
-from gensim.models import TfidfModel, WordEmbeddingSimilarityIndex
+from gensim.models import KeyedVectors, TfidfModel, WordEmbeddingSimilarityIndex
 from gensim.similarities import SparseTermSimilarityMatrix
 from gensim.summarization.bm25 import BM25
 from gensim.utils import tokenize
@@ -1408,7 +1408,7 @@ class Dataset(object):
 
         return doc_sims
 
-
+#
 # try:
 #     common_corpus = Dataset.from_file('fil9')
 # except IOError:
@@ -1418,13 +1418,13 @@ class Dataset(object):
 #         common_corpus.to_file()
 # common_dictionary = common_corpus.dictionary
 # common_tfidf = TfidfModel(dictionary=common_dictionary, smartirs='dtn')
-
+#
 # subprocess.call('make vectors', shell=True)
-common_embeddings = {
-    # 1: KeyedVectors.load_word2vec_format('vectors/1b_1000d_vectors_e50_nonbin', binary=False),
-    # 32: KeyedVectors.load_word2vec_format('vectors/32b_1000d_vectors_e50_nonbin', binary=False),
-}
-common_embedding_matrices = {
-    # num_bits: translate_embeddings(embeddings, common_dictionary)
-    # for num_bits, embeddings in common_embeddings.items()
-}
+# common_embeddings = {
+#     1: KeyedVectors.load_word2vec_format('vectors/1b_1000d_vectors_e50_nonbin', binary=False),
+#     32: KeyedVectors.load_word2vec_format('vectors/32b_1000d_vectors_e50_nonbin', binary=False),
+# }
+# common_embedding_matrices = {
+#     num_bits: translate_embeddings(embeddings, common_dictionary)
+#     for num_bits, embeddings in common_embeddings.items()
+# }
