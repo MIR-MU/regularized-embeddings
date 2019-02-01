@@ -8,6 +8,7 @@ import lzma
 from math import sqrt
 from multiprocessing import Pool
 import pickle
+import random
 import subprocess
 
 from gensim.corpora import Dictionary
@@ -973,8 +974,8 @@ class ClassificationResult(object):
 
         confusion_matrix = sklearn.metrics.confusion_matrix(y_true, y_pred)
         params = dict(params)
-        del params['collection_corpus']
-        del params['query_corpus']
+        params.pop('collection_corpus', None)
+        params.pop('query_corpus', None)
         result = ClassificationResult(confusion_matrix, params)
         return result
 
@@ -1180,13 +1181,13 @@ class Dataset(object):
             The validation set.
         test : Dataset
             The test set.
-        space : {'vsm', 'sparse_soft_vsm', 'dense_soft_vsm', 'lsi'}, optional
+        space : {'random', 'vsm', 'sparse_soft_vsm', 'dense_soft_vsm', 'lsi'}, optional
             The document representation used for the classification.
-        weights : {'binary', 'bow', 'tfidf', 'bm25'}, optional
+        weights : {'random', 'binary', 'bow', 'tfidf', 'bm25'}, optional
             The term weighting scheme used for the classification.
-        measure : {'inner_product', 'wmd'}, optional
+        measure : {'random', 'inner_product', 'wmd'}, optional
             The similarity measure used for the classification.
-        num_bits : {1, 32}, optional
+        num_bits : {'random', 1, 32}, optional
             The number of bits used to construct Word2Bit embeddings.
         """
         params = {
@@ -1198,6 +1199,14 @@ class Dataset(object):
         }
         grid_specification = {}
         train = self
+
+        if space == 'random':
+            y_true = test.target
+            classes = list(set(y_true))
+            random.seed(42)
+            y_pred = list(map(lambda _: random.choice(classes), range(len(y_true))))
+            result = ClassificationResult.from_results(y_true, y_pred, params)
+            return result
 
         LOGGER.debug('Preprocessing the datasets')
         if weights == 'tfidf':
