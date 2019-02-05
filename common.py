@@ -1378,7 +1378,7 @@ class Dataset(object):
                     )
                     ut, s, vt = cached_sparsesvd(lsi_basename, collection_matrix, 500)
                     collection_matrix = vt
-                    query_matrix = np.diag(1 / s).dot(scipy.sparse.csc_matrix.dot(ut, query_matrix))
+                    query_matrix = np.diag(1.0 / s).dot(scipy.sparse.csc_matrix.dot(ut, query_matrix))
                     del ut
                 elif space == 'dense_soft_vsm':
                     embedding_matrix = common_embedding_matrices[num_bits]
@@ -1387,8 +1387,8 @@ class Dataset(object):
                 if space != 'dense_soft_vsm' or weights != 'bow':
                     collection_matrix_norm = np.multiply(collection_matrix.T, collection_matrix.T).sum(axis=1).T
                     query_matrix_norm = np.multiply(query_matrix.T, query_matrix.T).sum(axis=1).T
-                    collection_matrix = np.multiply(collection_matrix, 1 / np.sqrt(collection_matrix_norm))
-                    query_matrix = np.multiply(query_matrix, 1 / np.sqrt(query_matrix_norm))
+                    collection_matrix = np.multiply(collection_matrix, 1.0 / np.sqrt(collection_matrix_norm))
+                    query_matrix = np.multiply(query_matrix, 1.0 / np.sqrt(query_matrix_norm))
                     collection_matrix[collection_matrix == np.inf] = 0.0
                     query_matrix[query_matrix == np.inf] = 0.0
                 doc_sims = collection_matrix.T.dot(query_matrix).T
