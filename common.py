@@ -1159,7 +1159,9 @@ class Dataset(object):
         filename = 'corpora/{}.pkl.xz'.format(name)
         with lzma.open(filename, 'rb') as f:
             LOGGER.info('Loading dataset from file {}.'.format(filename))
-            dataset = Dataset(name, **pickle.load(f))
+            kwargs = pickle.load(f)
+            kwargs['name'] = name
+            dataset = Dataset(**kwargs)
         return dataset
 
     def to_file(self):
