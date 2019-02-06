@@ -25,6 +25,7 @@ import scipy.stats
 from sklearn.datasets import fetch_20newsgroups
 import sklearn.metrics
 from sklearn.model_selection import train_test_split
+import sklearn.preprocessing as preprocessing
 from sparsesvd import sparsesvd
 from wmd import WMD
 
@@ -1382,18 +1383,15 @@ class Dataset(object):
                     del ut
                 elif space == 'dense_soft_vsm':
                     embedding_matrix = common_embedding_matrices[num_bits]
-                    if weights != 'binary':
-                        embedding_matrix_norm = np.multiply(embedding_matrix.T, embedding_matrix.T).sum(axis=1).T
-                        embedding_matrix = np.multiply(embedding_matrix, 1.0 / np.sqrt(embedding_matrix_norm))
+                    if weights == 'bow':
+                        embedding_matrix = preprocessing.normalize(embedding_matrix, norm='l1')
+                    elif weights == 'tfidf':
+                        embedding_matrix = preprocessing.normalize(embedding_matrix, norm='l2')
                     collection_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, collection_matrix)
                     query_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, query_matrix)
                 if space != 'dense_soft_vsm' or weights != 'bow':
-                    collection_matrix_norm = np.multiply(collection_matrix.T, collection_matrix.T).sum(axis=1).T
-                    query_matrix_norm = np.multiply(query_matrix.T, query_matrix.T).sum(axis=1).T
-                    collection_matrix = np.multiply(collection_matrix, 1.0 / np.sqrt(collection_matrix_norm))
-                    query_matrix = np.multiply(query_matrix, 1.0 / np.sqrt(query_matrix_norm))
-                    collection_matrix[collection_matrix == np.inf] = 0.0
-                    query_matrix[query_matrix == np.inf] = 0.0
+                    collection_matrix = preprocessing.normalize(collection_matrix, norm='l2')
+                    query_matrix = preprocessing.normalize(query_matrix, norm='l2')
                 doc_sims = collection_matrix.T.dot(query_matrix).T
             elif space == 'sparse_soft_vsm':
                 term_basename = '{num_bits}-{tfidf}-{symmetric}-{positive_definite}-{nonzero_limit}'.format(
