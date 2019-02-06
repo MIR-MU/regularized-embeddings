@@ -95,8 +95,8 @@ matrices:
 
 vectors: Word2Bits corpora
 	mkdir -p $@
-	Word2Bits/word2bits -sample 1e-4 -bitlevel 0 -size 1000 -window 10 -negative 24 -threads $(shell nproc) -iter 50 -min-count 5 -train corpora/text8 -output vectors/32b_1000d_vectors_e50_nonbin -binary 0
-	Word2Bits/word2bits -sample 1e-4 -bitlevel 1 -size 1000 -window 10 -negative 24 -threads $(shell nproc) -iter 50 -min-count 5 -train corpora/text8 -output vectors/1b_1000d_vectors_e50_nonbin -binary 0
+	Word2Bits/word2bits -sample 1e-4 -bitlevel 0 -size 1000 -window 10 -negative 24 -threads $(shell nproc) -iter 50 -min-count 5 -train corpora/fil9 -output vectors/32b_1000d_vectors_e50_nonbin -binary 0
+	Word2Bits/word2bits -sample 1e-4 -bitlevel 1 -size 1000 -window 10 -negative 24 -threads $(shell nproc) -iter 50 -min-count 5 -train corpora/fil9 -output vectors/1b_1000d_vectors_e50_nonbin -binary 0
 
 Word2Bits:
 	git clone https://github.com/agnusmaximus/Word2Bits
