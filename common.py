@@ -1334,7 +1334,7 @@ class Dataset(object):
             if 'query_corpus' not in params:
                 params['query_corpus'] = list(map(common_dictionary.doc2bow, queries.corpus))
             query_corpus = params['query_corpus']
-            if weights in ('binary', 'bm25', 'tfidf'):
+            if weights in ('binary', 'bm25'):
                 query_corpus = map(binarize_worker, query_corpus)
             elif weights == 'bow' and space != 'dense_soft_vsm':
                 query_corpus = map(unitvec, query_corpus)
