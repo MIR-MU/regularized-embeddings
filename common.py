@@ -1382,6 +1382,9 @@ class Dataset(object):
                     del ut
                 elif space == 'dense_soft_vsm':
                     embedding_matrix = common_embedding_matrices[num_bits]
+                    if weights != 'binary':
+                        embedding_matrix_norm = np.multiply(embedding_matrix.T, embedding_matrix.T).sum(axis=1).T
+                        embedding_matrix = np.multiply(embedding_matrix, 1.0 / np.sqrt(embedding_matrix_norm))
                     collection_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, collection_matrix)
                     query_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, query_matrix)
                 if space != 'dense_soft_vsm' or weights != 'bow':
