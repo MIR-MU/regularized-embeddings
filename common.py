@@ -839,11 +839,14 @@ def pivot_worker(args):
     """
 
     document, slope, bm25, doc_len = args
+    if document:
+        assert doc_len > 0
+
     pivoted_document = [
         (
             term_id,
             term_weight / (
-                1 - slope + slope * (doc_len / bm25.avgdl)
+                1.0 - slope + slope * (doc_len / bm25.avgdl)
             ),
         )
         for term_id, term_weight in document
@@ -1276,7 +1279,6 @@ class Dataset(object):
         num_bits = params['num_bits']
 
         collection = self
-        collection_bm25 = collection.bm25
         if weights == 'tfidf':
             if 'collection_corpus' not in params:
                 params['collection_corpus'] = list(map(collection.dictionary.doc2bow, collection.corpus))
@@ -1285,8 +1287,8 @@ class Dataset(object):
             collection_corpus = map(pivot_worker, zip(
                 collection_tfidf[collection_corpus],
                 repeat(slope),
-                repeat(collection_bm25),
-                collection_bm25.doc_len,
+                repeat(collection.bm25),
+                collection.bm25.doc_len,
             ))
             collection_corpus = map(translate_document_worker, zip(
                 collection_corpus,
@@ -1310,8 +1312,8 @@ class Dataset(object):
                     collection_corpus,
                     repeat(k1),
                     repeat(0.25),
-                    repeat(collection_bm25),
-                    collection_bm25.doc_len,
+                    repeat(collection.bm25),
+                    collection.bm25.doc_len,
                     repeat(common_dictionary),
                 ))
         collection_corpus = list(collection_corpus)
@@ -1323,8 +1325,8 @@ class Dataset(object):
             query_corpus = map(pivot_worker, zip(
                 collection_tfidf[query_corpus],
                 repeat(slope),
-                repeat(collection_bm25),
-                collection_bm25.doc_len,
+                repeat(collection.bm25),
+                queries.bm25.doc_len,
             ))
             query_corpus = map(translate_document_worker, zip(
                 query_corpus,
