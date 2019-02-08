@@ -586,7 +586,7 @@ def load_amazon():
     return amazon_train, amazon_validation, amazon_test
 
 
-def load_newsgroups():
+def load_20news():
     """Produces the training, validation, and test sets from 20NEWS.
 
     Returns
