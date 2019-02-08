@@ -150,9 +150,15 @@ def load_reuters():
             *(
                 zip(
                     repeat(category_number),
-                    reuters.fileids(category_name)
+                    (
+                        fileid
+                        for fileid in reuters.fileids(category_name)
+                        if len(reuters.categories(fileid)) == 1
+                    )
                 )
-                for category_number, category_name in enumerate(reuters.categories())
+                for category_number, category_name in enumerate((
+                    'acq', 'crude', 'earn', 'grain', 'interest',  'money-fx', 'ship', 'trade'
+                ))
             )
         )
         reuters_train_and_validation_X = []
