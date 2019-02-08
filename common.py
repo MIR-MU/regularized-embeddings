@@ -1,5 +1,5 @@
 import csv
-from functools import total_ordering
+from functools import total_ordering, reduce
 from glob import glob
 from itertools import chain, product, repeat
 import json
@@ -7,6 +7,7 @@ import logging
 import lzma
 from math import sqrt
 from multiprocessing import Pool
+import operator
 import pickle
 import random
 import subprocess
@@ -27,6 +28,7 @@ import sklearn.metrics
 from sklearn.model_selection import train_test_split
 import sklearn.preprocessing as preprocessing
 from sparsesvd import sparsesvd
+from tqdm import tqdm
 from wmd import WMD
 
 LOGGER = logging.getLogger(__name__)
@@ -1214,7 +1216,6 @@ class Dataset(object):
             result = ClassificationResult.from_results(y_true, y_pred, params)
             return result
 
-        LOGGER.debug('Preprocessing the datasets')
         if weights == 'tfidf':
             grid_specification.update({'slope': np.linspace(0, 1, 11)})
         elif weights == 'bm25':
@@ -1228,18 +1229,24 @@ class Dataset(object):
                 'nonzero_limit': (100, 200, 300, 400, 500, 600),
             })
 
-        LOGGER.debug('Performing a grid search')
-        for grid_params in grid_search(grid_specification):
+        LOGGER.info('Grid searching on dataset {} with params {}'.format(self.name, params))
+        for grid_params in tqdm(
+                    grid_search(grid_specification),
+                    total=reduce(operator.mul, (
+                        len(values)
+                        for values in grid_specification.values()
+                    ), 1),
+                ):
             params.update(grid_params)
             doc_sims = train.get_similarities(validation, params)
             results = []
             for k in range(1, 20):
+                LOGGER.info('Finding k={} nearest neighbors'.format(k))
                 params['k'] = k
                 result = ClassificationResult.from_similarities(doc_sims, train, validation, params)
                 results.append(result)
         best_result = max(results)
 
-        LOGGER.debug('Testing the performance')
         params = best_result.params
         doc_sims = train.get_similarities(test, params)
         result = ClassificationResult.from_similarities(doc_sims, train, test, params)
