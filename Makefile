@@ -85,18 +85,17 @@ NTCIR:
 
 corpora:
 	mkdir -p $@
-	cd $@ && wget http://mattmahoney.net/dc/enwik9.zip
-	cd $@ && wget http://mattmahoney.net/dc/text8.zip
+	cd $@ && wget http://mattmahoney.net/dc/enwik8.zip
 	cd $@ && parallel --halt=2 -- unzip ::: *.zip
-	cd $@ && perl ../wikifil.pl enwik9 > fil9
+	cd $@ && perl ../wikifil.pl enwik8 > fil8
 
 matrices:
 	mkdir -p $@
 
 vectors: Word2Bits corpora
 	mkdir -p $@
-	Word2Bits/word2bits -sample 1e-4 -bitlevel 0 -size 1000 -window 10 -negative 24 -threads $(shell nproc) -iter 50 -min-count 5 -train corpora/fil9 -output vectors/32b_1000d_vectors_e50_nonbin -binary 0
-	Word2Bits/word2bits -sample 1e-4 -bitlevel 1 -size 1000 -window 10 -negative 24 -threads $(shell nproc) -iter 50 -min-count 5 -train corpora/fil9 -output vectors/1b_1000d_vectors_e50_nonbin -binary 0
+	Word2Bits/word2bits -sample 1e-4 -bitlevel 0 -size 200  -window 10 -negative 24 -threads $(shell nproc) -iter 10 -min-count 5 -train corpora/fil8 -output vectors/32b_200d_vectors_e10_nonbin -binary 0
+	Word2Bits/word2bits -sample 1e-4 -bitlevel 1 -size 1000 -window 10 -negative 24 -threads $(shell nproc) -iter 10 -min-count 5 -train corpora/fil8 -output vectors/1b_1000d_vectors_e10_nonbin -binary 0
 
 Word2Bits:
 	git clone https://github.com/agnusmaximus/Word2Bits

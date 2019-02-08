@@ -25,11 +25,12 @@ from scipy import sparse
 import scipy.stats
 from sklearn.datasets import fetch_20newsgroups
 import sklearn.metrics
+from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.model_selection import train_test_split
 import sklearn.preprocessing as preprocessing
 from sparsesvd import sparsesvd
 from tqdm import tqdm
-from wmd import WMD
+from pyemd import emd
 
 LOGGER = logging.getLogger(__name__)
 
@@ -1392,21 +1393,22 @@ class Dataset(object):
 
         if measure == 'wmd':
             embedding_matrix = common_embedding_matrices[num_bits]
-            corpus = {
-                document_id: tuple(chain((None,), zip(*document) if document else ((), ())))
-                for document_id, document in enumerate(chain(collection_corpus, query_corpus))
-            }
-            wmd = WMD(embedding_matrix, corpus, vocabulary_min=1)
-            doc_sims = np.ones((len(query_corpus), len(collection_corpus))) / 0
-            for row_number in range(len(query_corpus)):
-                query_id = len(collection_corpus) + row_number
-                column_numbers, column_values = zip(*(
-                    (document_id, similarity)
-                    for document_id, similarity in wmd.nearest_neighbors(query_id, k=20)
-                    if document_id < len(collection_corpus)
-                ))
-                doc_sims[row_number, column_numbers] = column_values
-            doc_sims = -doc_sims
+            doc_sims = np.empty((len(query_corpus), len(collection_corpus)), dtype=float)
+            for column_number, collection_document in enumerate(collection_corpus):
+                collection_document = dict(collection_document)
+                for row_number, query_document in enumerate(query_corpus):
+                    query_document = dict(query_document)
+                    shared_terms = tuple(set(collection_document.keys()) & set(query_document.keys()))
+                    translated_collection_document = np.array(map(lambda x: collection_document[x], shared_terms), dtype=float)
+                    translated_query_document = np.array(map(lambda x: query_document[x], shared_terms), dtype=float)
+                    shared_embeddings = embedding_matrix[shared_terms]
+                    distance_matrix = euclidean_distances(shared_embeddings, shared_embeddings)
+                    distance = emd(translated_collection_document, translated_query_document, distance_matrix)
+                    if distance == 0.0:
+                        similarity = float('inf')
+                    else:
+                        similarity = 1.0 / distance
+                    doc_sims[row_number, column_number] = similarity
         elif measure == 'inner_product':
             collection_matrix = corpus2csc(collection_corpus, len(common_dictionary))
             query_matrix = corpus2csc(query_corpus, len(common_dictionary))
@@ -1472,19 +1474,19 @@ class Dataset(object):
 
 #
 # try:
-#     common_corpus = Dataset.from_file('fil9')
+#     common_corpus = Dataset.from_file('fil8')
 # except IOError:
 #     subprocess.call('make corpora', shell=True)
-#     with open('corpora/fil9', 'rt') as f:
-#         common_corpus = Dataset.from_documents(f, 'fil9')
+#     with open('corpora/fil8', 'rt') as f:
+#         common_corpus = Dataset.from_documents(f, 'fil8')
 #         common_corpus.to_file()
 # common_dictionary = common_corpus.dictionary
 # common_tfidf = TfidfModel(dictionary=common_dictionary, smartirs='dtn')
 #
 # subprocess.call('make vectors', shell=True)
 # common_embeddings = {
-#     1: KeyedVectors.load_word2vec_format('vectors/1b_1000d_vectors_e50_nonbin', binary=False),
-#     32: KeyedVectors.load_word2vec_format('vectors/32b_1000d_vectors_e50_nonbin', binary=False),
+#     1: KeyedVectors.load_word2vec_format('vectors/1b_1000d_vectors_e10_nonbin', binary=False),
+#     32: KeyedVectors.load_word2vec_format('vectors/32b_200d_vectors_e10_nonbin', binary=False),
 # }
 # common_embedding_matrices = {
 #     num_bits: translate_embeddings(embeddings, common_dictionary)
