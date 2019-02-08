@@ -5,7 +5,7 @@ from itertools import chain, product, repeat
 import json
 import logging
 import lzma
-from math import sqrt
+from math import sqrt, ceil, floor
 from multiprocessing import Pool
 import operator
 import pickle
@@ -67,6 +67,9 @@ def load_twitter():
                     twitter_X.append(document)
                     twitter_y.append(category_number)
 
+        random.seed(42)
+        twitter_X, twitter_y = zip(*random.sample(list(zip(twitter_X, twitter_y)), 2176))
+
         (
             twitter_train_and_validation_X,
             twitter_test_X,
@@ -76,8 +79,7 @@ def load_twitter():
             twitter_X,
             twitter_y,
             test_size=0.2,
-            shuffle=True,
-            random_state=42,
+            shuffle=False,
         )
         twitter_test = Dataset.from_documents(twitter_test_X, 'twitter_test', twitter_test_y)
         twitter_test.to_file()
@@ -176,6 +178,18 @@ def load_reuters():
                 reuters_train_and_validation_y.extend(local_reuters_train_and_validation_y)
                 reuters_test_X.extend(local_reuters_test_X)
                 reuters_test_y.extend(local_reuters_test_y)
+
+        subsampled_fraction = 3999 / (len(reuters_train_and_validation_X) + len(reuters_test_X))
+        random.seed(42)
+        reuters_train_and_validation_X, reuters_train_and_validation_y = zip(*random.sample(
+            list(zip(reuters_train_and_validation_X, reuters_train_and_validation_y)),
+            int(ceil(subsampled_fraction * len(reuters_train_and_validation_X))),
+        ))
+        reuters_test_X, reuters_test_y = zip(*random.sample(
+            list(zip(reuters_test_X, reuters_test_y)),
+            int(floor(subsampled_fraction * len(reuters_test_X))),
+        ))
+
         reuters_test = Dataset.from_documents(reuters_test_X, 'reuters_test', reuters_test_y)
         reuters_test.to_file()
         del reuters_test_X, reuters_test_y
@@ -189,8 +203,7 @@ def load_reuters():
             reuters_train_and_validation_X,
             reuters_train_and_validation_y,
             test_size=0.2,
-            shuffle=True,
-            random_state=42,
+            shuffle=False,
         )
         reuters_train = Dataset.from_documents(reuters_train_X, 'reuters_train', reuters_train_y)
         reuters_train.to_file()
@@ -251,6 +264,9 @@ def load_ohsumed():
                 ohsumed_X.extend(local_ohsumed_X)
                 ohsumed_y.extend(local_ohsumed_y)
 
+        random.seed(42)
+        ohsumed_X, ohsumed_y = zip(*random.sample(list(zip(ohsumed_X, ohsumed_y)), 3999))
+
         (
             ohsumed_train_and_validation_X,
             ohsumed_test_X,
@@ -260,8 +276,7 @@ def load_ohsumed():
             ohsumed_X,
             ohsumed_y,
             test_size=0.2,
-            shuffle=True,
-            random_state=42,
+            shuffle=False,
         )
         ohsumed_test = Dataset.from_documents(ohsumed_test_X, 'ohsumed_test', ohsumed_test_y)
         ohsumed_test.to_file()
@@ -337,6 +352,9 @@ def load_bbcsport():
                 bbcsport_X.extend(local_bbcsport_X)
                 bbcsport_y.extend(local_bbcsport_y)
 
+        random.seed(42)
+        bbcsport_X, bbcsport_y = zip(*random.sample(list(zip(bbcsport_X, bbcsport_y)), 517))
+
         (
             bbcsport_train_and_validation_X,
             bbcsport_test_X,
@@ -346,8 +364,7 @@ def load_bbcsport():
             bbcsport_X,
             bbcsport_y,
             test_size=0.2,
-            shuffle=True,
-            random_state=42,
+            shuffle=False,
         )
         bbcsport_test = Dataset.from_documents(
             bbcsport_test_X,
@@ -527,6 +544,9 @@ def load_amazon():
             amazon_X.extend(local_amazon_X)
             amazon_y.extend(local_amazon_y)
 
+        random.seed(42)
+        amazon_X, amazon_y = zip(*random.sample(list(zip(amazon_X, amazon_y)), 5600))
+
         (
             amazon_train_and_validation_X,
             amazon_test_X,
@@ -535,10 +555,9 @@ def load_amazon():
         ) = train_test_split(
             amazon_X,
             amazon_y,
-            train_size=0.8 / 100,
-            test_size=0.2 / 100,
-            shuffle=True,
-            random_state=42,
+            train_size=0.8,
+            test_size=0.2,
+            shuffle=False,
         )
         amazon_test = Dataset.from_documents(amazon_test_X, 'amazon_test', amazon_test_y)
         amazon_test.to_file()
@@ -586,17 +605,36 @@ def load_newsgroups():
         newsgroups_test = Dataset.from_file('newsgroups_test')
     except IOError:
         newsgroups_train_and_validation_raw = fetch_20newsgroups(subset='train')
+        newsgroups_train_and_validation_X = newsgroups_train_and_validation_raw.data
+        newsgroups_train_and_validation_y = newsgroups_train_and_validation_raw.target
+        del newsgroups_train_and_validation_raw
+
+        newsgroups_test_raw = fetch_20newsgroups(subset='test')
+        newsgroups_test_X = newsgroups_test_raw.data
+        newsgroups_test_y = newsgroups_test_raw.target
+        del newsgroups_test_raw
+
+        subsampled_fraction = 11293 / (len(newsgroups_train_and_validation_X) + len(newsgroups_test_X))
+        random.seed(42)
+        newsgroups_train_and_validation_X, newsgroups_train_and_validation_y = zip(*random.sample(
+            list(zip(newsgroups_train_and_validation_X, newsgroups_train_and_validation_y)),
+            int(ceil(subsampled_fraction * len(newsgroups_train_and_validation_X))),
+        ))
+        newsgroups_test_X, newsgroups_test_y = zip(*random.sample(
+            list(zip(newsgroups_test_X, newsgroups_test_y)),
+            int(floor(subsampled_fraction * len(newsgroups_test_X))),
+        ))
+
         (
             newsgroups_train_X,
             newsgroups_validation_X,
             newsgroups_train_y,
             newsgroups_validation_y
         ) = train_test_split(
-            newsgroups_train_and_validation_raw.data,
-            newsgroups_train_and_validation_raw.target,
+            newsgroups_train_and_validation_X,
+            newsgroups_train_and_validation_y,
             test_size=0.2,
-            shuffle=True,
-            random_state=42,
+            shuffle=False,
         )
         newsgroups_train = Dataset.from_documents(
             newsgroups_train_X,
@@ -610,20 +648,16 @@ def load_newsgroups():
             newsgroups_validation_y,
         )
         newsgroups_validation.to_file()
-        del newsgroups_train_and_validation_raw
+        del newsgroups_train_and_validation_X, newsgroups_train_and_validation_y
         del newsgroups_train_X, newsgroups_train_y
         del newsgroups_validation_X, newsgroups_validation_y
 
-        newsgroups_test_raw = fetch_20newsgroups(subset='test')
-        newsgroups_test_X = newsgroups_test_raw.data
-        newsgroups_test_y = newsgroups_test_raw.target
         newsgroups_test = Dataset.from_documents(
             newsgroups_test_X,
             'newsgroups_test',
             newsgroups_test_y,
         )
         newsgroups_test.to_file()
-        del newsgroups_test_raw
         del newsgroups_test_X, newsgroups_test_y
 
     return newsgroups_train, newsgroups_validation, newsgroups_test
