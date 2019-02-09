@@ -1399,15 +1399,18 @@ class Dataset(object):
                 for row_number, query_document in enumerate(query_corpus):
                     query_document = dict(query_document)
                     shared_terms = tuple(set(collection_document.keys()) & set(query_document.keys()))
-                    translated_collection_document = np.array(map(lambda x: collection_document[x], shared_terms), dtype=float)
-                    translated_query_document = np.array(map(lambda x: query_document[x], shared_terms), dtype=float)
-                    shared_embeddings = embedding_matrix[shared_terms]
-                    distance_matrix = euclidean_distances(shared_embeddings, shared_embeddings)
-                    distance = emd(translated_collection_document, translated_query_document, distance_matrix)
-                    if distance == 0.0:
-                        similarity = float('inf')
+                    if shared_terms:
+                        translated_collection_document = np.array(list(map(lambda x: collection_document[x], shared_terms)), dtype=float)
+                        translated_query_document = np.array(list(map(lambda x: query_document[x], shared_terms)), dtype=float)
+                        shared_embeddings = embedding_matrix[shared_terms, :].astype(float)
+                        distance_matrix = euclidean_distances(shared_embeddings, shared_embeddings)
+                        distance = emd(translated_collection_document, translated_query_document, distance_matrix)
+                        if distance == 0.0:
+                            similarity = float('inf')
+                        else:
+                            similarity = 1.0 / distance
                     else:
-                        similarity = 1.0 / distance
+                        similarity = 0.0
                     doc_sims[row_number, column_number] = similarity
         elif measure == 'inner_product':
             collection_matrix = corpus2csc(collection_corpus, len(common_dictionary))
