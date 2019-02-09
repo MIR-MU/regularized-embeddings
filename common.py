@@ -1391,6 +1391,7 @@ class Dataset(object):
 
         if measure == 'wmd':
             embedding_matrix = common_embedding_matrices[num_bits]
+            embedding_matrix_norm_squared = (embedding_matrix**2).sum(axis=1)
             doc_sims = np.empty((len(query_corpus), len(collection_corpus)), dtype=float)
             for column_number, collection_document in enumerate(collection_corpus):
                 collection_document = dict(collection_document)
@@ -1401,7 +1402,7 @@ class Dataset(object):
                         translated_collection_document = np.array(list(map(lambda x: collection_document[x], shared_terms)), dtype=float)
                         translated_query_document = np.array(list(map(lambda x: query_document[x], shared_terms)), dtype=float)
                         shared_embeddings = embedding_matrix[shared_terms, :].astype(float)
-                        distance_matrix = euclidean_distances(shared_embeddings, shared_embeddings)
+                        distance_matrix = euclidean_distances(X=shared_embeddings, X_norm_squared=embedding_matrix_norm_squared)
                         distance = emd(translated_collection_document, translated_query_document, distance_matrix)
                         if distance == 0.0:
                             similarity = float('inf')
