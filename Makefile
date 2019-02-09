@@ -92,7 +92,9 @@ corpora:
 matrices:
 	mkdir -p $@
 
-vectors: Word2Bits corpora
+vectors:
+	make Word2Bits
+	make corpora
 	mkdir -p $@
 	Word2Bits/word2bits -sample 1e-4 -bitlevel 0 -size 200  -window 10 -negative 24 -threads $(shell nproc) -iter 10 -min-count 5 -train corpora/fil8 -output vectors/32b_200d_vectors_e10_nonbin -binary 0
 	Word2Bits/word2bits -sample 1e-4 -bitlevel 1 -size 1000 -window 10 -negative 24 -threads $(shell nproc) -iter 10 -min-count 5 -train corpora/fil8 -output vectors/1b_1000d_vectors_e10_nonbin -binary 0
