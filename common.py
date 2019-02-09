@@ -1399,10 +1399,19 @@ class Dataset(object):
                     query_document = dict(query_document)
                     shared_terms = tuple(set(collection_document.keys()) & set(query_document.keys()))
                     if shared_terms:
-                        translated_collection_document = np.array(list(map(lambda x: collection_document[x], shared_terms)), dtype=float)
-                        translated_query_document = np.array(list(map(lambda x: query_document[x], shared_terms)), dtype=float)
+                        translated_collection_document = np.array(list(map(
+                            lambda x: collection_document[x],
+                            shared_terms,
+                        )), dtype=float)
+                        translated_query_document = np.array(list(map(
+                            lambda x: query_document[x],
+                            shared_terms,
+                        )), dtype=float)
                         shared_embeddings = embedding_matrix[shared_terms, :].astype(float)
-                        distance_matrix = euclidean_distances(X=shared_embeddings, X_norm_squared=embedding_matrix_norm_squared)
+                        distance_matrix = euclidean_distances(
+                            shared_embeddings,
+                            X_norm_squared=embedding_matrix_norm_squared,
+                        )
                         distance = emd(translated_collection_document, translated_query_document, distance_matrix)
                         if distance == 0.0:
                             similarity = float('inf')
