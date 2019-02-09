@@ -870,10 +870,6 @@ def pivot_worker(args):
         A document.
     slope : float
         The pivoting slope.
-    bm25 : gensim.summarization.bm25.BM25
-        Statistics about the documents in a dataset.
-    doc_len : int
-        The length of the document.
 
     Returns
     -------
@@ -881,15 +877,14 @@ def pivot_worker(args):
         The pivoted document.
     """
 
-    document, slope, bm25, doc_len = args
-    if document:
-        assert doc_len > 0
+    document, slope, avgdl = args
+    doclen = sum(len(token) for token in document)
 
     pivoted_document = [
         (
             term_id,
             term_weight / (
-                1.0 - slope + slope * (doc_len / bm25.avgdl)
+                1.0 - slope + slope * (doclen / avgdl)
             ),
         )
         for term_id, term_weight in document
@@ -1136,6 +1131,8 @@ class Dataset(object):
         Statistics about the documents in the dataset.
     corpus : list of list of str
         The tokenized corpus of documents.
+    avgdl : float
+        The average character length of a document.
     dictionary : gensim.corpora.Dictionary
         A mapping between tokens and token ids.
     target : {list, None}, optional
@@ -1149,15 +1146,18 @@ class Dataset(object):
         Statistics about the documents in the dataset.
     corpus : list of list of str
         The tokenized corpus of documents.
+    avgdl : float
+        The average character length of a document.
     dictionary : gensim.corpora.Dictionary
         A mapping between tokens and token ids.
     target : {list, None}
         The document classes. Defaults to `None`.
     """
-    def __init__(self, name, bm25, corpus, dictionary, target=None):
+    def __init__(self, name, bm25, corpus, avgdl, dictionary, target=None):
         self.name = name
         self.bm25 = bm25
         self.corpus = corpus
+        self.avgdl = avgdl
         self.dictionary = dictionary
         self.target = target
 
@@ -1180,13 +1180,13 @@ class Dataset(object):
             The dataset constructed from the untokenized corpus.
         """
         LOGGER.info('Reading dataset from untokenized corpus.')
-        with Pool(None) as pool:
-            corpus = pool.map(tokenize_worker, documents)
+        corpus = list(map(tokenize_worker, documents))
         bm25 = BM25(corpus)
+        avgdl = sum(sum(len(token) for token in document) for document in corpus) / len(corpus)
         dictionary = Dictionary(corpus, prune_at=None)
         if target is not None:
             target = list(target)
-        dataset = Dataset(name, bm25, corpus, dictionary, target)
+        dataset = Dataset(name, bm25, corpus, avgdl, dictionary, target)
         return dataset
 
     @staticmethod
@@ -1335,8 +1335,7 @@ class Dataset(object):
             collection_corpus = map(pivot_worker, zip(
                 collection_tfidf[collection_corpus],
                 repeat(slope),
-                repeat(collection.bm25),
-                collection.bm25.doc_len,
+                repeat(collection.avgdl),
             ))
             collection_corpus = map(translate_document_worker, zip(
                 collection_corpus,
@@ -1373,8 +1372,7 @@ class Dataset(object):
             query_corpus = map(pivot_worker, zip(
                 collection_tfidf[query_corpus],
                 repeat(slope),
-                repeat(collection.bm25),
-                queries.bm25.doc_len,
+                repeat(collection.avgdl),
             ))
             query_corpus = map(translate_document_worker, zip(
                 query_corpus,
