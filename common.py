@@ -848,12 +848,12 @@ def binarize_worker(document):
 
     Parameters
     ----------
-    document : list of list of (int, float)
+    document : list of (int, float)
         A document.
 
     Returns
     -------
-    binarized_document : list of list of (int, float)
+    binarized_document : list of (int, float)
         The binarized document.
     """
 
