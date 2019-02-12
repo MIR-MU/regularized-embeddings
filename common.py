@@ -68,9 +68,6 @@ def load_twitter():
                     twitter_X.append(document)
                     twitter_y.append(category_number)
 
-        random.seed(42)
-        twitter_X, twitter_y = zip(*random.sample(list(zip(twitter_X, twitter_y)), 2176))
-
         (
             twitter_train_and_validation_X,
             twitter_test_X,
@@ -180,7 +177,7 @@ def load_reuters():
                 reuters_test_X.extend(local_reuters_test_X)
                 reuters_test_y.extend(local_reuters_test_y)
 
-        subsampled_fraction = 3999 / (len(reuters_train_and_validation_X) + len(reuters_test_X))
+        subsampled_fraction = (5485 * 5) / (len(reuters_train_and_validation_X) + len(reuters_test_X))
         random.seed(42)
         reuters_train_and_validation_X, reuters_train_and_validation_y = zip(*random.sample(
             list(zip(reuters_train_and_validation_X, reuters_train_and_validation_y)),
@@ -266,7 +263,7 @@ def load_ohsumed():
                 ohsumed_y.extend(local_ohsumed_y)
 
         random.seed(42)
-        ohsumed_X, ohsumed_y = zip(*random.sample(list(zip(ohsumed_X, ohsumed_y)), 3999))
+        ohsumed_X, ohsumed_y = zip(*random.sample(list(zip(ohsumed_X, ohsumed_y)), 3999 * 5))
 
         (
             ohsumed_train_and_validation_X,
@@ -352,9 +349,6 @@ def load_bbcsport():
             for local_bbcsport_X, local_bbcsport_y in pool.map(bbcsport_read_file_worker, categories):
                 bbcsport_X.extend(local_bbcsport_X)
                 bbcsport_y.extend(local_bbcsport_y)
-
-        random.seed(42)
-        bbcsport_X, bbcsport_y = zip(*random.sample(list(zip(bbcsport_X, bbcsport_y)), 517))
 
         (
             bbcsport_train_and_validation_X,
@@ -546,7 +540,7 @@ def load_amazon():
             amazon_y.extend(local_amazon_y)
 
         random.seed(42)
-        amazon_X, amazon_y = zip(*random.sample(list(zip(amazon_X, amazon_y)), 5600))
+        amazon_X, amazon_y = zip(*random.sample(list(zip(amazon_X, amazon_y)), 5600 * 5))
 
         (
             amazon_train_and_validation_X,
@@ -614,17 +608,6 @@ def load_20news():
         newsgroups_test_X = newsgroups_test_raw.data
         newsgroups_test_y = newsgroups_test_raw.target
         del newsgroups_test_raw
-
-        subsampled_fraction = 11293 / (len(newsgroups_train_and_validation_X) + len(newsgroups_test_X))
-        random.seed(42)
-        newsgroups_train_and_validation_X, newsgroups_train_and_validation_y = zip(*random.sample(
-            list(zip(newsgroups_train_and_validation_X, newsgroups_train_and_validation_y)),
-            int(ceil(subsampled_fraction * len(newsgroups_train_and_validation_X))),
-        ))
-        newsgroups_test_X, newsgroups_test_y = zip(*random.sample(
-            list(zip(newsgroups_test_X, newsgroups_test_y)),
-            int(floor(subsampled_fraction * len(newsgroups_test_X))),
-        ))
 
         (
             newsgroups_train_X,
