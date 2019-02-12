@@ -831,14 +831,14 @@ def inverse_wmd_worker(args):
     embedding_matrix_norm_squared = common_embedding_matrices_norm_squared[num_bits]
     query_document = dict(query_document)
     collection_document = dict(collection_document)
-    shared_terms = tuple(set(query_document.keys()) & set(collection_document.keys()))
+    shared_terms = tuple(set(query_document.keys()) | set(collection_document.keys()))
     if shared_terms:
         translated_query_document = np.array(list(map(
-            lambda x: query_document[x],
+            lambda x: query_document.get(x, 0.0),
             shared_terms,
         )), dtype=float)
         translated_collection_document = np.array(list(map(
-            lambda x: collection_document[x],
+            lambda x: collection_document.get(x, 0.0),
             shared_terms,
         )), dtype=float)
         shared_embedding_matrix = embedding_matrix[shared_terms, :].astype(float)
@@ -1457,7 +1457,6 @@ class Dataset(object):
                                 position=1,
                                 total=len(query_corpus) * len(collection_corpus),
                             ),
-                            chunksize=512,
                         ):
                     doc_sims[row_number, column_number] = similarity
         elif measure == 'inner_product':
