@@ -804,6 +804,59 @@ def cached_sparse_term_similarity_matrix(basename, *args, **kwargs):
     return term_matrix
 
 
+def inverse_wmd_worker(args):
+    """Produces inverse word mover's distances for a collection document and a query corpus.
+
+    Parameters
+    ----------
+    (row_number, query_document) : (int, list of (int, float))
+        The identifier of a query document and the query document.
+    (collection_number, collection_document) : (int, list of (int, float))
+        The identifier of a collection document and the collection document.
+    num_bits : int
+        The quantization level of the word vectors used to compute the word mover's distance.
+
+    Returns
+    -------
+    row_number : int
+        The identifier of the query document.
+    column_number : int
+        The identifier of the collection document.
+    inverse_distance : float
+        The inverse word mover's distances between the collection document and the query document.
+    """
+
+    (row_number, query_document), (column_number, collection_document), num_bits = args
+    embedding_matrix = common_embedding_matrices[num_bits]
+    embedding_matrix_norm_squared = common_embedding_matrices_norm_squared[num_bits]
+    query_document = dict(query_document)
+    collection_document = dict(collection_document)
+    shared_terms = tuple(set(query_document.keys()) & set(collection_document.keys()))
+    if shared_terms:
+        translated_query_document = np.array(list(map(
+            lambda x: query_document[x],
+            shared_terms,
+        )), dtype=float)
+        translated_collection_document = np.array(list(map(
+            lambda x: collection_document[x],
+            shared_terms,
+        )), dtype=float)
+        shared_embedding_matrix = embedding_matrix[shared_terms, :].astype(float)
+        shared_embedding_matrix_norm_squared = embedding_matrix_norm_squared[shared_terms, :].astype(float)
+        distance_matrix = euclidean_distances(
+            shared_embedding_matrix,
+            X_norm_squared=shared_embedding_matrix_norm_squared,
+        )
+        distance = emd(translated_collection_document, translated_query_document, distance_matrix)
+        if distance == 0.0:
+            inverse_distance = float('inf')
+        else:
+            inverse_distance = 1.0 / distance
+    else:
+        inverse_distance = 0.0
+    return (row_number, column_number, inverse_distance)
+
+
 def bm25_worker(args):
     """Transform a document using Okapi BM25 term weighting.
 
@@ -1273,6 +1326,7 @@ class Dataset(object):
         LOGGER.info('Grid searching on dataset {} with params {}'.format(self.name, params))
         for grid_params in tqdm(
                     grid_search(grid_specification),
+                    position=0,
                     total=reduce(operator.mul, (
                         len(values)
                         for values in grid_specification.values()
@@ -1390,35 +1444,21 @@ class Dataset(object):
         query_corpus = list(query_corpus)
 
         if measure == 'wmd':
-            embedding_matrix = common_embedding_matrices[num_bits]
-            embedding_matrix_norm_squared = (embedding_matrix**2).sum(axis=1)
             doc_sims = np.empty((len(query_corpus), len(collection_corpus)), dtype=float)
-            for column_number, collection_document in enumerate(collection_corpus):
-                collection_document = dict(collection_document)
-                for row_number, query_document in enumerate(query_corpus):
-                    query_document = dict(query_document)
-                    shared_terms = tuple(set(collection_document.keys()) & set(query_document.keys()))
-                    if shared_terms:
-                        translated_collection_document = np.array(list(map(
-                            lambda x: collection_document[x],
-                            shared_terms,
-                        )), dtype=float)
-                        translated_query_document = np.array(list(map(
-                            lambda x: query_document[x],
-                            shared_terms,
-                        )), dtype=float)
-                        shared_embeddings = embedding_matrix[shared_terms, :].astype(float)
-                        distance_matrix = euclidean_distances(
-                            shared_embeddings,
-                            X_norm_squared=embedding_matrix_norm_squared,
-                        )
-                        distance = emd(translated_collection_document, translated_query_document, distance_matrix)
-                        if distance == 0.0:
-                            similarity = float('inf')
-                        else:
-                            similarity = 1.0 / distance
-                    else:
-                        similarity = 0.0
+            with Pool(None) as pool:
+                for row_number, column_number, similarity in pool.imap_unordered(
+                            inverse_wmd_worker,
+                            tqdm(
+                                product(
+                                    enumerate(query_corpus),
+                                    enumerate(collection_corpus),
+                                    (num_bits, ),
+                                ),
+                                position=1,
+                                total=len(query_corpus) * len(collection_corpus),
+                            ),
+                            chunksize=512,
+                        ):
                     doc_sims[row_number, column_number] = similarity
         elif measure == 'inner_product':
             collection_matrix = corpus2csc(collection_corpus, len(common_dictionary))
@@ -1502,4 +1542,8 @@ class Dataset(object):
 # common_embedding_matrices = {
 #     num_bits: translate_embeddings(embeddings, common_dictionary)
 #     for num_bits, embeddings in common_embeddings.items()
+# }
+# common_embedding_matrices_norm_squared = {
+#     num_bits: (embedding_matrix**2).sum(axis=1)[:, np.newaxis]
+#     for num_bits, embedding_matrix in common_embedding_matrices.items()
 # }
