@@ -178,17 +178,6 @@ def load_reuters():
                 reuters_test_X.extend(local_reuters_test_X)
                 reuters_test_y.extend(local_reuters_test_y)
 
-        subsampled_fraction = (5485 * 5) / (len(reuters_train_and_validation_X) + len(reuters_test_X))
-        random.seed(42)
-        reuters_train_and_validation_X, reuters_train_and_validation_y = zip(*random.sample(
-            list(zip(reuters_train_and_validation_X, reuters_train_and_validation_y)),
-            int(ceil(subsampled_fraction * len(reuters_train_and_validation_X))),
-        ))
-        reuters_test_X, reuters_test_y = zip(*random.sample(
-            list(zip(reuters_test_X, reuters_test_y)),
-            int(floor(subsampled_fraction * len(reuters_test_X))),
-        ))
-
         reuters_test = Dataset.from_documents(reuters_test_X, 'reuters_test', reuters_test_y)
         reuters_test.to_file()
         del reuters_test_X, reuters_test_y
