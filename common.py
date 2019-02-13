@@ -11,6 +11,7 @@ import operator
 import pickle
 import random
 import subprocess
+from time import time
 
 from gensim.corpora import Dictionary
 from gensim.matutils import corpus2csc, unitvec
@@ -747,7 +748,11 @@ def cached_sparsesvd(basename, *args):
             LOGGER.debug('Loading SVD matrices from file {}.'.format(filename))
             ut, s, vt = pickle.load(f)
     except IOError:
+        start_time = time()
         ut, s, vt = sparsesvd(*args)
+        stop_time = time()
+        duration = stop_time - start_time
+        LOGGER.info('Performed SVD in {} seconds'.format(duration))
         with lzma.open(filename, 'wb', preset=0) as f:
             LOGGER.info('Saving SVD matrices to file {}.'.format(filename))
             pickle.dump((ut, s, vt), f, 4)
@@ -779,7 +784,11 @@ def cached_sparse_term_similarity_matrix(basename, *args, **kwargs):
             LOGGER.debug('Loading term similarity matrix from file {}.'.format(filename))
             term_matrix = pickle.load(f)
     except IOError:
+        start_time = time()
         term_sims = SparseTermSimilarityMatrix(*args, **kwargs)
+        stop_time = time()
+        duration = stop_time - start_time
+        LOGGER.info('Constructed term similarity matrix in {} seconds'.format(duration))
         term_matrix = term_sims.matrix
         with lzma.open(filename, 'wb', preset=0) as f:
             LOGGER.info('Saving term similarity matrix to file {}.'.format(filename))
@@ -1363,6 +1372,8 @@ class Dataset(object):
         measure = params['measure']
         num_bits = params['num_bits']
 
+        start_time = time()
+
         collection = self
         if weights == 'tfidf':
             if 'collection_corpus' not in params:
@@ -1502,6 +1513,11 @@ class Dataset(object):
                 collection_matrix[collection_matrix == np.inf] = 0.0
                 query_matrix[query_matrix == np.inf] = 0.0
                 doc_sims = collection_matrix.T.dot(term_matrix).dot(query_matrix).T.todense()
+
+        stop_time = time()
+        num_document_pairs = len(collection.corpus) * len(queries.corpus)
+        duration = stop_time - start_time
+        LOGGER.info('Processed {} document pairs / {} seconds'.format(num_document_pairs, duration))
 
         return doc_sims
 
