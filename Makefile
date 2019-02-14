@@ -92,6 +92,9 @@ corpora:
 matrices:
 	mkdir -p $@
 
+figures:
+	mkdir -p $@
+
 vectors:
 	make Word2Bits
 	make corpora

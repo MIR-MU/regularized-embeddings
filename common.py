@@ -1148,6 +1148,8 @@ class ClassificationResult(object):
     def accuracy(self, significance_level=0.05):
         """Returns pointwise and interval estimates for the accuracy.
 
+        We assume that the trials are binomial.
+
         Parameters
         ----------
         significance_level : scalar
@@ -1180,6 +1182,56 @@ class ClassificationResult(object):
 
     def __repr__(self):
         return '<ClassificationResult, accuracy: {:.02f}%, params: {}>'.format(self._accuracy * 100, self.params)
+
+
+class KusnerEtAlClassificationResult(object):
+    """A classification result taken from the Kusner et al. (2015) paper.
+
+    Parameters
+    ----------
+    test_error_height : scalar
+        The height in pixels of a reported test error in Figure 3 of Kusner et al. (2015).
+    error_bar_height : scalar
+        The height in pixels of a reported error bar in Figure 3 of Kusner et al. (2015).
+
+    Attributes
+    ----------
+    standard_error : scalar
+        An estimate of the standard error of the mean of a binomial trial.
+    """
+    def __init__(self, test_error_height, error_bar_height):
+        hundred_percent_height = 122.3581549180 / 70 * 100
+        self._accuracy = 1 - (test_error_height / hundred_percent_height)
+        self.standard_error = error_bar_height / 2.0 / hundred_percent_height * sqrt(5)
+
+    def accuracy(self, significance_level=0.05):
+        """Returns pointwise and interval estimates for the accuracy.
+
+        We invoke the central limit theorem and assume that the sampling distribution
+        of the mean is normal.
+
+        Parameters
+        ----------
+        significance_level : scalar
+            The likelihood that the actual accuracy falls into the
+            confidence interval.
+
+        Returns
+        -------
+        pointwise_estimate : scalar
+            An unbiased pointwise estimate of the expected value of
+            the accuracy.
+        lower_bound : scalar
+            The lower bound of the confidence interval for the accuracy.
+        upper_bound : scalar
+            The upper bound of the confidence interval for the accuracy.
+        """
+
+        pointwise_estimate = self._accuracy
+        interval_radius = self.standard_error * scipy.stats.norm.ppf(1 - significance_level / 2.0)
+        lower_bound = max(0.0, pointwise_estimate - interval_radius)
+        upper_bound = min(1.0, pointwise_estimate + interval_radius)
+        return (pointwise_estimate, lower_bound, upper_bound)
 
 
 class Dataset(object):
