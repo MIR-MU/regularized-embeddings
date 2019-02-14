@@ -1554,8 +1554,8 @@ class Dataset(object):
                     collection_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, collection_matrix)
                     query_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, query_matrix)
                 if space != 'dense_soft_vsm' or weights != 'bow':
-                    collection_matrix = preprocessing.normalize(collection_matrix, norm='l2')
-                    query_matrix = preprocessing.normalize(query_matrix, norm='l2')
+                    collection_matrix = preprocessing.normalize(collection_matrix.T, norm='l2').T
+                    query_matrix = preprocessing.normalize(query_matrix.T, norm='l2').T
                 doc_sims = collection_matrix.T.dot(query_matrix).T
             elif space == 'sparse_soft_vsm':
                 term_basename = '{num_bits}-{tfidf}-{symmetric}-{positive_definite}-{nonzero_limit}'.format(
