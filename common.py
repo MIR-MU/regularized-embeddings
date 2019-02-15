@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import csv
 from functools import total_ordering, reduce
 from glob import glob
@@ -738,13 +739,36 @@ def grid_search(grid_specification):
             yield dict(zip(keys, grid_params))
 
 
-def cached_sparsesvd(basename, *args):
+@contextmanager
+def log_speed(speed_logs, message):
+    """Measures and logs the duration of a context.
+
+    Parameters
+    ----------
+    speed_logs : list of str
+        Text logs regarding speed.
+    message : str
+        A log message, which will be processed using ``string.format()``
+        with the duration of a context as the only parameter.
+    """
+    start_time = time()
+    yield
+    stop_time = time()
+    duration = stop_time - start_time
+    speed_log = message.format(duration)
+    speed_logs.append(speed_log)
+    LOGGER.info(speed_log)
+
+
+def cached_sparsesvd(basename, speed_logs, *args):
     """Produces an SVD of a document matrix, loading it if cached.
 
     Parameters
     ----------
     basename : str
         The basename of the cached SVD matrix.
+    speed_logs : list of str
+        Text logs regarding the processing speed.
     args : iterable
         The arguments of the `sparsesvd` function.
 
@@ -758,31 +782,31 @@ def cached_sparsesvd(basename, *args):
         The :math:`V^T` matrix.
     """
 
-    subprocess.call('make matrices', shell=True)
-    filename = 'matrices/svd-{}.pkl.xz'.format(basename)
-    try:
-        with lzma.open(filename, 'rb') as f:
-            LOGGER.debug('Loading SVD matrices from file {}.'.format(filename))
-            ut, s, vt = pickle.load(f)
-    except IOError:
-        start_time = time()
-        ut, s, vt = sparsesvd(*args)
-        stop_time = time()
-        duration = stop_time - start_time
-        LOGGER.info('Performed SVD in {} seconds'.format(duration))
-        with lzma.open(filename, 'wb', preset=0) as f:
-            LOGGER.info('Saving SVD matrices to file {}.'.format(filename))
-            pickle.dump((ut, s, vt), f, 4)
-    return (ut, s, vt)
+    with log_speed(speed_logs, 'Spent {} seconds producing an SVD matrix'):
+        subprocess.call('make matrices', shell=True)
+        filename = 'matrices/svd-{}.pkl.xz'.format(basename)
+        try:
+            with lzma.open(filename, 'rb') as f:
+                LOGGER.debug('Loading SVD matrices from file {}.'.format(filename))
+                ut, s, vt = pickle.load(f)
+        except IOError:
+            with log_speed(speed_logs, 'Performed SVD in {} seconds'):
+                ut, s, vt = sparsesvd(*args)
+            with lzma.open(filename, 'wb', preset=0) as f:
+                LOGGER.info('Saving SVD matrices to file {}.'.format(filename))
+                pickle.dump((ut, s, vt), f, 4)
+        return (ut, s, vt)
 
 
-def cached_sparse_term_similarity_matrix(basename, *args, **kwargs):
+def cached_sparse_term_similarity_matrix(basename, speed_logs, *args, **kwargs):
     """Produces a sparse term similarity matrix, loading it if cached.
 
     Parameters
     ----------
     basename : str
         The basename of the cached SVD matrix.
+    speed_logs : list of str
+        Text logs regarding the processing speed.
     args : iterable
         The arguments of the `SparseTermSimilarityMatrix` constructor.
     kwargs : dict
@@ -794,23 +818,21 @@ def cached_sparse_term_similarity_matrix(basename, *args, **kwargs):
         The sparse term similarity matrix.
     """
 
-    subprocess.call('make matrices', shell=True)
-    filename = 'matrices/termsim-{}.pkl.xz'.format(basename)
-    try:
-        with lzma.open(filename, 'rb') as f:
-            LOGGER.debug('Loading term similarity matrix from file {}.'.format(filename))
-            term_matrix = pickle.load(f)
-    except IOError:
-        start_time = time()
-        term_sims = SparseTermSimilarityMatrix(*args, **kwargs)
-        stop_time = time()
-        duration = stop_time - start_time
-        LOGGER.info('Constructed term similarity matrix in {} seconds'.format(duration))
-        term_matrix = term_sims.matrix
-        with lzma.open(filename, 'wb', preset=0) as f:
-            LOGGER.info('Saving term similarity matrix to file {}.'.format(filename))
-            pickle.dump(term_matrix, f, 4)
-    return term_matrix
+    with log_speed(speed_logs, 'Spent {} seconds producing a term similarity matrix'):
+        subprocess.call('make matrices', shell=True)
+        filename = 'matrices/termsim-{}.pkl.xz'.format(basename)
+        try:
+            with lzma.open(filename, 'rb') as f:
+                LOGGER.debug('Loading term similarity matrix from file {}.'.format(filename))
+                term_matrix = pickle.load(f)
+        except IOError:
+            with log_speed(speed_logs, 'Constructed term similarity matrix in {} seconds'):
+                term_sims = SparseTermSimilarityMatrix(*args, **kwargs)
+            term_matrix = term_sims.matrix
+            with lzma.open(filename, 'wb', preset=0) as f:
+                LOGGER.info('Saving term similarity matrix to file {}.'.format(filename))
+                pickle.dump(term_matrix, f, 4)
+        return term_matrix
 
 
 def inverse_wmd_worker(args):
@@ -1359,6 +1381,7 @@ class Dataset(object):
             'measure': measure,
             'num_bits': num_bits,
             'task': 'classification',
+            'speed_logs': [],
         }
         grid_specification = {}
         train = self
@@ -1440,153 +1463,152 @@ class Dataset(object):
         task = params['task']
         measure = params['measure']
         num_bits = params['num_bits']
-
-        start_time = time()
+        speed_logs = params['speed_logs']
 
         collection = self
-        if weights == 'tfidf':
-            if 'collection_corpus' not in params:
-                params['collection_corpus'] = list(map(collection.dictionary.doc2bow, collection.corpus))
-            collection_corpus = params['collection_corpus']
-            collection_tfidf = TfidfModel(dictionary=collection.dictionary, smartirs='dtn')
-            collection_corpus = map(pivot_worker, zip(
-                collection_tfidf[collection_corpus],
-                repeat(slope),
-                repeat(collection.avgdl),
-            ))
-            collection_corpus = map(translate_document_worker, zip(
-                collection_corpus,
-                repeat(collection.dictionary),
-                repeat(common_dictionary),
-            ))
-        else:
-            if 'collection_corpus' not in params:
-                params['collection_corpus'] = list(map(common_dictionary.doc2bow, collection.corpus))
-            collection_corpus = params['collection_corpus']
-            if weights == 'bow':
-                if space == 'dense_soft_vsm':
-                    norm = 'l1'
-                else:
-                    norm = 'l2'
-                collection_corpus = map(lambda document: unitvec(document, norm), collection_corpus)
-            elif weights == 'binary':
-                collection_corpus = map(binarize_worker, collection_corpus)
-            elif weights == 'bm25':
-                collection_corpus = map(bm25_worker, zip(
+        num_document_pairs = len(collection.corpus) * len(queries.corpus)
+
+        with log_speed(speed_logs, 'Processed {} document pairs / {{}} seconds'.format(num_document_pairs)):
+
+            if weights == 'tfidf':
+                if 'collection_corpus' not in params:
+                    params['collection_corpus'] = list(map(collection.dictionary.doc2bow, collection.corpus))
+                collection_corpus = params['collection_corpus']
+                collection_tfidf = TfidfModel(dictionary=collection.dictionary, smartirs='dtn')
+                collection_corpus = map(pivot_worker, zip(
+                    collection_tfidf[collection_corpus],
+                    repeat(slope),
+                    repeat(collection.avgdl),
+                ))
+                collection_corpus = map(translate_document_worker, zip(
                     collection_corpus,
-                    repeat(k1),
-                    repeat(0.25),
-                    repeat(collection.bm25),
-                    collection.bm25.doc_len,
+                    repeat(collection.dictionary),
                     repeat(common_dictionary),
                 ))
-        collection_corpus = list(collection_corpus)
-
-        if weights == 'tfidf' and task == 'classification':
-            if 'query_corpus' not in params:
-                params['query_corpus'] = list(map(collection.dictionary.doc2bow, queries.corpus))
-            query_corpus = params['query_corpus']
-            query_corpus = map(pivot_worker, zip(
-                collection_tfidf[query_corpus],
-                repeat(slope),
-                repeat(collection.avgdl),
-            ))
-            query_corpus = map(translate_document_worker, zip(
-                query_corpus,
-                repeat(collection.dictionary),
-                repeat(common_dictionary),
-            ))
-        else:
-            if 'query_corpus' not in params:
-                params['query_corpus'] = list(map(common_dictionary.doc2bow, queries.corpus))
-            query_corpus = params['query_corpus']
-            if weights in ('binary', 'bm25'):
-                query_corpus = map(binarize_worker, query_corpus)
-            elif weights == 'bow' and space != 'dense_soft_vsm':
-                query_corpus = map(unitvec, query_corpus)
-        query_corpus = list(query_corpus)
-
-        if measure == 'wmd':
-            doc_sims = np.empty((len(query_corpus), len(collection_corpus)), dtype=float)
-            with Pool(None) as pool:
-                for row_number, column_number, similarity in pool.imap_unordered(
-                            inverse_wmd_worker,
-                            tqdm(
-                                product(
-                                    enumerate(query_corpus),
-                                    enumerate(collection_corpus),
-                                    (num_bits, ),
-                                ),
-                                position=1,
-                                total=len(query_corpus) * len(collection_corpus),
-                            ),
-                        ):
-                    doc_sims[row_number, column_number] = similarity
-        elif measure == 'inner_product':
-            collection_matrix = corpus2csc(collection_corpus, len(common_dictionary))
-            query_matrix = corpus2csc(query_corpus, len(common_dictionary))
-
-            if space == 'vsm':
-                doc_sims = collection_matrix.T.dot(query_matrix).T.todense()
-            elif space in ('lsi', 'dense_soft_vsm'):
-                if space == 'lsi':
-                    if weights == 'tfidf':
-                        weights_str = 'tfidf_{:.1}'.format(slope)
-                    elif weights == 'bm25':
-                        weights_str = 'bm25_{:.1}'.format(k1)
+            else:
+                if 'collection_corpus' not in params:
+                    params['collection_corpus'] = list(map(common_dictionary.doc2bow, collection.corpus))
+                collection_corpus = params['collection_corpus']
+                if weights == 'bow':
+                    if space == 'dense_soft_vsm':
+                        norm = 'l1'
                     else:
-                        weights_str = weights
-                    lsi_basename = '{dataset_name}-{task}-{weights_str}'.format(
-                        dataset_name=collection.name,
-                        task=task,
-                        weights_str=weights_str,
-                    )
-                    ut, s, vt = cached_sparsesvd(lsi_basename, collection_matrix, 500)
-                    collection_matrix = vt
-                    query_matrix = np.diag(1.0 / s).dot(scipy.sparse.csc_matrix.dot(ut, query_matrix))
-                    del ut
-                elif space == 'dense_soft_vsm':
-                    embedding_matrix = common_embedding_matrices[num_bits]
-                    if weights == 'bow':
-                        embedding_matrix = preprocessing.normalize(embedding_matrix, norm='l1')
-                    elif weights == 'tfidf':
-                        embedding_matrix = preprocessing.normalize(embedding_matrix, norm='l2')
-                    collection_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, collection_matrix)
-                    query_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, query_matrix)
-                if space != 'dense_soft_vsm' or weights != 'bow':
-                    collection_matrix = preprocessing.normalize(collection_matrix.T, norm='l2').T
-                    query_matrix = preprocessing.normalize(query_matrix.T, norm='l2').T
-                doc_sims = collection_matrix.T.dot(query_matrix).T
-            elif space == 'sparse_soft_vsm':
-                term_basename = '{num_bits}-{tfidf}-{symmetric}-{positive_definite}-{nonzero_limit}'.format(
-                    num_bits=num_bits,
-                    tfidf=tfidf,
-                    symmetric=symmetric,
-                    positive_definite=positive_definite,
-                    nonzero_limit=nonzero_limit,
-                )
-                term_index = WordEmbeddingSimilarityIndex(common_embeddings[num_bits])
-                term_matrix = cached_sparse_term_similarity_matrix(
-                    term_basename,
-                    term_index,
-                    common_dictionary,
-                    tfidf=common_tfidf if tfidf else None,
-                    symmetric=symmetric,
-                    positive_definite=positive_definite,
-                    nonzero_limit=nonzero_limit,
-                )
-                collection_matrix_norm = collection_matrix.T.dot(term_matrix).multiply(collection_matrix.T).sum(axis=1).T
-                query_matrix_norm = query_matrix.T.dot(term_matrix).multiply(query_matrix.T).sum(axis=1).T
-                collection_matrix = collection_matrix.multiply(sparse.csr_matrix(1 / np.sqrt(collection_matrix_norm)))
-                query_matrix = query_matrix.multiply(sparse.csr_matrix(1 / np.sqrt(query_matrix_norm)))
-                collection_matrix[collection_matrix == np.inf] = 0.0
-                query_matrix[query_matrix == np.inf] = 0.0
-                doc_sims = collection_matrix.T.dot(term_matrix).dot(query_matrix).T.todense()
+                        norm = 'l2'
+                    collection_corpus = map(lambda document: unitvec(document, norm), collection_corpus)
+                elif weights == 'binary':
+                    collection_corpus = map(binarize_worker, collection_corpus)
+                elif weights == 'bm25':
+                    collection_corpus = map(bm25_worker, zip(
+                        collection_corpus,
+                        repeat(k1),
+                        repeat(0.25),
+                        repeat(collection.bm25),
+                        collection.bm25.doc_len,
+                        repeat(common_dictionary),
+                    ))
+            collection_corpus = list(collection_corpus)
 
-        stop_time = time()
-        num_document_pairs = len(collection.corpus) * len(queries.corpus)
-        duration = stop_time - start_time
-        LOGGER.info('Processed {} document pairs / {} seconds'.format(num_document_pairs, duration))
+            if weights == 'tfidf' and task == 'classification':
+                if 'query_corpus' not in params:
+                    params['query_corpus'] = list(map(collection.dictionary.doc2bow, queries.corpus))
+                query_corpus = params['query_corpus']
+                query_corpus = map(pivot_worker, zip(
+                    collection_tfidf[query_corpus],
+                    repeat(slope),
+                    repeat(collection.avgdl),
+                ))
+                query_corpus = map(translate_document_worker, zip(
+                    query_corpus,
+                    repeat(collection.dictionary),
+                    repeat(common_dictionary),
+                ))
+            else:
+                if 'query_corpus' not in params:
+                    params['query_corpus'] = list(map(common_dictionary.doc2bow, queries.corpus))
+                query_corpus = params['query_corpus']
+                if weights in ('binary', 'bm25'):
+                    query_corpus = map(binarize_worker, query_corpus)
+                elif weights == 'bow' and space != 'dense_soft_vsm':
+                    query_corpus = map(unitvec, query_corpus)
+            query_corpus = list(query_corpus)
+
+            if measure == 'wmd':
+                doc_sims = np.empty((len(query_corpus), len(collection_corpus)), dtype=float)
+                with Pool(None) as pool:
+                    for row_number, column_number, similarity in pool.imap_unordered(
+                                inverse_wmd_worker,
+                                tqdm(
+                                    product(
+                                        enumerate(query_corpus),
+                                        enumerate(collection_corpus),
+                                        (num_bits, ),
+                                    ),
+                                    position=1,
+                                    total=len(query_corpus) * len(collection_corpus),
+                                ),
+                            ):
+                        doc_sims[row_number, column_number] = similarity
+            elif measure == 'inner_product':
+                collection_matrix = corpus2csc(collection_corpus, len(common_dictionary))
+                query_matrix = corpus2csc(query_corpus, len(common_dictionary))
+
+                if space == 'vsm':
+                    doc_sims = collection_matrix.T.dot(query_matrix).T.todense()
+                elif space in ('lsi', 'dense_soft_vsm'):
+                    if space == 'lsi':
+                        if weights == 'tfidf':
+                            weights_str = 'tfidf_{:.1}'.format(slope)
+                        elif weights == 'bm25':
+                            weights_str = 'bm25_{:.1}'.format(k1)
+                        else:
+                            weights_str = weights
+                        lsi_basename = '{dataset_name}-{task}-{weights_str}'.format(
+                            dataset_name=collection.name,
+                            task=task,
+                            weights_str=weights_str,
+                        )
+                        ut, s, vt = cached_sparsesvd(lsi_basename, speed_logs, collection_matrix, 500)
+                        collection_matrix = vt
+                        query_matrix = np.diag(1.0 / s).dot(scipy.sparse.csc_matrix.dot(ut, query_matrix))
+                        del ut
+                    elif space == 'dense_soft_vsm':
+                        embedding_matrix = common_embedding_matrices[num_bits]
+                        if weights == 'bow':
+                            embedding_matrix = preprocessing.normalize(embedding_matrix, norm='l1')
+                        elif weights == 'tfidf':
+                            embedding_matrix = preprocessing.normalize(embedding_matrix, norm='l2')
+                        collection_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, collection_matrix)
+                        query_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, query_matrix)
+                    if space != 'dense_soft_vsm' or weights != 'bow':
+                        collection_matrix = preprocessing.normalize(collection_matrix.T, norm='l2').T
+                        query_matrix = preprocessing.normalize(query_matrix.T, norm='l2').T
+                    doc_sims = collection_matrix.T.dot(query_matrix).T
+                elif space == 'sparse_soft_vsm':
+                    term_basename = '{num_bits}-{tfidf}-{symmetric}-{positive_definite}-{nonzero_limit}'.format(
+                        num_bits=num_bits,
+                        tfidf=tfidf,
+                        symmetric=symmetric,
+                        positive_definite=positive_definite,
+                        nonzero_limit=nonzero_limit,
+                    )
+                    term_index = WordEmbeddingSimilarityIndex(common_embeddings[num_bits])
+                    term_matrix = cached_sparse_term_similarity_matrix(
+                        term_basename,
+                        speed_logs,
+                        term_index,
+                        common_dictionary,
+                        tfidf=common_tfidf if tfidf else None,
+                        symmetric=symmetric,
+                        positive_definite=positive_definite,
+                        nonzero_limit=nonzero_limit,
+                    )
+                    collection_matrix_norm = collection_matrix.T.dot(term_matrix).multiply(collection_matrix.T).sum(axis=1).T
+                    query_matrix_norm = query_matrix.T.dot(term_matrix).multiply(query_matrix.T).sum(axis=1).T
+                    collection_matrix = collection_matrix.multiply(sparse.csr_matrix(1 / np.sqrt(collection_matrix_norm)))
+                    query_matrix = query_matrix.multiply(sparse.csr_matrix(1 / np.sqrt(query_matrix_norm)))
+                    collection_matrix[collection_matrix == np.inf] = 0.0
+                    query_matrix[query_matrix == np.inf] = 0.0
+                    doc_sims = collection_matrix.T.dot(term_matrix).dot(query_matrix).T.todense()
 
         return doc_sims
 
