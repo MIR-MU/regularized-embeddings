@@ -255,7 +255,7 @@ def load_ohsumed():
                 )
                 for category_number, category_name in (
                     (category_number, 'C{:02}'.format(category_number))
-                    for category_number in range(1, 24)
+                    for category_number in range(1, 11)
                 )
             )
         )
