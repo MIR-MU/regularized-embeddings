@@ -55,7 +55,7 @@ def load_twitter():
         twitter_validation = Dataset.from_file('twitter_validation')
         twitter_test = Dataset.from_file('twitter_test')
     except IOError:
-        subprocess.call('make TWITTER', shell=True)
+        assert subprocess.call('make TWITTER', shell=True) == 0
         twitter_X = []
         twitter_y = []
         category_names = ('positive', 'neutral', 'negative', 'irrelevant')
@@ -236,7 +236,7 @@ def load_ohsumed():
         ohsumed_validation = Dataset.from_file('ohsumed_validation')
         ohsumed_test = Dataset.from_file('ohsumed_test')
     except IOError:
-        subprocess.call('make OHSUMED', shell=True)
+        assert subprocess.call('make OHSUMED', shell=True) == 0
         categories = chain(
             *(
                 zip(
@@ -324,7 +324,7 @@ def load_bbcsport():
         bbcsport_validation = Dataset.from_file('bbcsport_validation')
         bbcsport_test = Dataset.from_file('bbcsport_test')
     except IOError:
-        subprocess.call('make BBC', shell=True)
+        assert subprocess.call('make BBC', shell=True) == 0
         categories = chain(
             *(
                 zip(
@@ -423,7 +423,7 @@ def load_bbc():
         bbc_validation = Dataset.from_file('bbc_validation')
         bbc_test = Dataset.from_file('bbc_test')
     except IOError:
-        subprocess.call('make BBC', shell=True)
+        assert subprocess.call('make BBC', shell=True) == 0
         categories = chain(
             *(
                 zip(
@@ -511,7 +511,7 @@ def load_amazon():
         amazon_validation = Dataset.from_file('amazon_validation')
         amazon_test = Dataset.from_file('amazon_test')
     except IOError:
-        subprocess.call('make AMAZON', shell=True)
+        assert subprocess.call('make AMAZON', shell=True) == 0
         categories = chain(
             *(
                 zip(
@@ -758,7 +758,7 @@ def cached_sparsesvd(basename, speed_logs, *args):
     """
 
     with log_speed(speed_logs, 'Spent {} seconds producing an SVD matrix'):
-        subprocess.call('make matrices', shell=True)
+        assert subprocess.call('make matrices', shell=True) == 0
         filename = 'matrices/svd-{}.pkl.xz'.format(basename)
         try:
             with lzma.open(filename, 'rb') as f:
@@ -794,7 +794,7 @@ def cached_sparse_term_similarity_matrix(basename, speed_logs, *args, **kwargs):
     """
 
     with log_speed(speed_logs, 'Spent {} seconds producing a term similarity matrix'):
-        subprocess.call('make matrices', shell=True)
+        assert subprocess.call('make matrices', shell=True) == 0
         filename = 'matrices/termsim-{}.pkl.xz'.format(basename)
         try:
             with lzma.open(filename, 'rb') as f:
@@ -1591,7 +1591,7 @@ class Dataset(object):
 # try:
 #     common_corpus = Dataset.from_file('fil8')
 # except IOError:
-#     subprocess.call('make corpora', shell=True)
+#     assert subprocess.call('make corpora', shell=True) == 0
 #     with open('corpora/fil8', 'rt') as f:
 #         common_corpus = Dataset.from_documents(f, 'fil8')
 #         common_corpus.to_file()
