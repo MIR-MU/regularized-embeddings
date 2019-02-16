@@ -9,6 +9,7 @@ import lzma
 from math import sqrt
 from multiprocessing import Pool
 import operator
+import os.path
 import pickle
 import random
 import subprocess
@@ -79,7 +80,7 @@ def load_twitter():
             twitter_X,
             twitter_y,
             train_size=2176,
-            test_size=int((0.2 / 0.8) * 2176),
+            test_size=932,
             shuffle=True,
             random_state=42,
         )
@@ -181,6 +182,11 @@ def load_reuters():
                 reuters_test_X.extend(local_reuters_test_X)
                 reuters_test_y.extend(local_reuters_test_y)
 
+        reuters_train_and_validation_X = reuters_train_and_validation_X[:5485]
+        reuters_train_and_validation_y = reuters_train_and_validation_y[:5485]
+        reuters_test_X = reuters_test_X[:2189]
+        reuters_test_y = reuters_test_y[:2189]
+
         reuters_test = Dataset.from_documents(reuters_test_X, 'reuters_test', reuters_test_y)
         reuters_test.to_file()
         del reuters_test_X, reuters_test_y
@@ -208,13 +214,20 @@ def load_reuters():
     return reuters_train, reuters_validation, reuters_test
 
 
-def ohsumed_read_file_worker(args):
-    category_number, filename = args
+def ohsumed_read_file_worker(pathname):
+    filename = os.path.basename(pathname)
     local_ohsumed_X = []
     local_ohsumed_y = []
-    with open(filename, 'rt') as f:
-        local_ohsumed_X.append(f.read())
-        local_ohsumed_y.append(category_number)
+    pathnames = [
+        (category_number, pathname)
+        for category_number in range(1, 11)
+        for pathname in glob('OHSUMED/ohsumed-all/C{:02}/{}'.format(category_number, filename))
+    ]
+    if len(pathnames) == 1:
+        category_number = pathnames[0][0]
+        with open(pathname, 'rt') as f:
+            local_ohsumed_X.append(f.read())
+            local_ohsumed_y.append(category_number)
     return local_ohsumed_X, local_ohsumed_y
 
 
@@ -237,22 +250,17 @@ def load_ohsumed():
         ohsumed_test = Dataset.from_file('ohsumed_test')
     except IOError:
         make('OHSUMED')
-        categories = chain(
-            *(
-                zip(
-                    repeat(category_number),
-                    glob('OHSUMED/ohsumed-all/{}/*'.format(category_name))
-                )
-                for category_number, category_name in (
-                    (category_number, 'C{:02}'.format(category_number))
-                    for category_number in range(1, 11)
-                )
+        pathnames = sorted(
+            set(
+                pathname
+                for category_number in range(1, 11)
+                for pathname in glob('OHSUMED/ohsumed-all/C{:02}/*'.format(category_number))
             )
         )
         ohsumed_X = []
         ohsumed_y = []
         with Pool(None) as pool:
-            for local_ohsumed_X, local_ohsumed_y in pool.map(ohsumed_read_file_worker, categories):
+            for local_ohsumed_X, local_ohsumed_y in pool.map(ohsumed_read_file_worker, pathnames):
                 ohsumed_X.extend(local_ohsumed_X)
                 ohsumed_y.extend(local_ohsumed_y)
 
@@ -265,7 +273,7 @@ def load_ohsumed():
             ohsumed_X,
             ohsumed_y,
             train_size=3999,
-            test_size=int((0.2 / 0.8) * 3999),
+            test_size=5153,
             shuffle=True,
             random_state=42,
         )
@@ -352,7 +360,7 @@ def load_bbcsport():
             bbcsport_X,
             bbcsport_y,
             train_size=517,
-            test_size=int((0.2 / 0.8) * 517),
+            test_size=220,
             shuffle=True,
             random_state=42,
         )
@@ -450,7 +458,7 @@ def load_bbc():
         ) = train_test_split(
             bbc_X,
             bbc_y,
-            train_size=0.8,
+            train_size=0.7,
             shuffle=True,
             random_state=42,
         )
@@ -544,7 +552,7 @@ def load_amazon():
             amazon_X,
             amazon_y,
             train_size=5600,
-            test_size=int((0.2 / 0.8) * 5600),
+            test_size=2400,
             shuffle=True,
             random_state=42,
         )
@@ -594,13 +602,13 @@ def load_20news():
         newsgroups_test = Dataset.from_file('newsgroups_test')
     except IOError:
         newsgroups_train_and_validation_raw = fetch_20newsgroups(subset='train')
-        newsgroups_train_and_validation_X = newsgroups_train_and_validation_raw.data
-        newsgroups_train_and_validation_y = newsgroups_train_and_validation_raw.target
+        newsgroups_train_and_validation_X = newsgroups_train_and_validation_raw.data[:11293]
+        newsgroups_train_and_validation_y = newsgroups_train_and_validation_raw.target[:11293]
         del newsgroups_train_and_validation_raw
 
         newsgroups_test_raw = fetch_20newsgroups(subset='test')
-        newsgroups_test_X = newsgroups_test_raw.data
-        newsgroups_test_y = newsgroups_test_raw.target
+        newsgroups_test_X = newsgroups_test_raw.data[:7528]
+        newsgroups_test_y = newsgroups_test_raw.target[:7528]
         del newsgroups_test_raw
 
         (
@@ -612,7 +620,8 @@ def load_20news():
             newsgroups_train_and_validation_X,
             newsgroups_train_and_validation_y,
             train_size=0.8,
-            shuffle=False,
+            shuffle=True,
+            random_state=42,
         )
         newsgroups_train = Dataset.from_documents(
             newsgroups_train_X,
