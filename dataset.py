@@ -680,7 +680,7 @@ def log_speed(speed_logs, message):
     Parameters
     ----------
     speed_logs : list of str
-        Text logs regarding speed.
+        Text logs regarding processing speed.
     message : str
         A log message, which will be processed using ``string.format()``
         with the duration of a context as the only parameter.
@@ -702,7 +702,7 @@ def cached_sparsesvd(basename, speed_logs, *args):
     basename : str
         The basename of the cached SVD matrix.
     speed_logs : list of str
-        Text logs regarding the processing speed.
+        Text logs regarding processing speed.
     args : iterable
         The arguments of the `sparsesvd` function.
 
@@ -740,7 +740,7 @@ def cached_sparse_term_similarity_matrix(basename, speed_logs, *args, **kwargs):
     basename : str
         The basename of the cached SVD matrix.
     speed_logs : list of str
-        Text logs regarding the processing speed.
+        Text logs regarding processing speed.
     args : iterable
         The arguments of the `SparseTermSimilarityMatrix` constructor.
     kwargs : dict

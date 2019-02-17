@@ -3,6 +3,7 @@ import logging
 import lzma
 from math import sqrt
 import pickle
+from re import compile, match
 import subprocess
 
 import numpy as np
@@ -10,6 +11,64 @@ import scipy.stats
 import sklearn.metrics
 
 LOGGER = logging.getLogger(__name__)
+
+matrix_production_re = compile(r'(Performed SVD in|Spent) (?P<duration>[^ ]*) seconds')
+similarity_speed_re = compile(r'Processed (?P<num_documents>[^ ]*) document pairs / (?P<duration>[^ ]*) seconds')
+
+
+def read_speeds(results, significance_level=0.05):
+    """Returns pointwise and interval estimates for the document processing speed.
+
+    We invoke the central limit theorem and assume that the sampling
+    distribution of the mean is normal.  We use the following method to `estimate
+    the population variance from a set of means
+    <https://stats.stackexchange.com/a/25079/116294>`_.
+
+    Parameters
+    ----------
+    results : iterable of {ClassificationResult,KusnerEtAlClassificationResult}
+        Classification results.
+    significance_level : scalar
+        The likelihood that the population speed falls into the confidence
+        interval.
+
+    Returns
+    -------
+    pointwise_estimate : scalar
+        An unbiased pointwise estimate of the expected value of the speed.
+    lower_bound : scalar
+        The lower bound of the confidence interval for the speed.
+    upper_bound : scalar
+        The upper bound of the confidence interval for the speed.
+    """
+
+    matrix_production_duration = 0.0
+    speeds = []
+    nums_similarities = []
+    similarity_durations = []
+    for result in results:
+        for line in result.params['speed_logs']:
+            matrix_production_match = match(matrix_production_re, line)
+            similarity_speed_match = match(similarity_speed_re, line)
+            if matrix_production_match:
+                matrix_production_duration = float(matrix_production_match.group('duration'))
+            elif similarity_speed_match:
+                num_similarities = int(similarity_speed_match.group('num_documents'))
+                similarity_duration = float(similarity_speed_match.group('duration')) - matrix_production_duration
+                matrix_production_duration = 0.0
+                nums_similarities.append(num_similarities)
+                similarity_durations.append(similarity_duration)
+
+    pointwise_estimate = sum(nums_similarities) / sum(similarity_durations)
+    speeds = np.divide(nums_similarities, similarity_durations)
+    sample_weights = np.divide(nums_similarities, len(speeds) - 1)
+    weighted_sample_variance = np.sum(np.multiply(sample_weights, np.subtract(speeds, pointwise_estimate)**2))
+    standard_error_of_mean = sqrt(weighted_sample_variance / sum(nums_similarities))
+    interval_radius = standard_error_of_mean * scipy.stats.norm.ppf(1 - significance_level / 2.0)
+    lower_bound = max(0.0, pointwise_estimate - interval_radius)
+    upper_bound = pointwise_estimate + interval_radius
+
+    return (pointwise_estimate, lower_bound, upper_bound)
 
 
 def make(target):
@@ -198,7 +257,7 @@ class ClassificationResult(object):
         Parameters
         ----------
         significance_level : scalar
-            The likelihood that the actual accuracy falls into the
+            The likelihood that the population accuracy falls into the
             confidence interval.
 
         Returns
@@ -238,16 +297,21 @@ class KusnerEtAlClassificationResult(object):
         The height in pixels of a reported test error in Figure 3 of Kusner et al. (2015).
     error_bar_height : scalar
         The height in pixels of a reported error bar in Figure 3 of Kusner et al. (2015).
+    params : dict
+        A dict of params related to the classification result.
 
     Attributes
     ----------
     standard_error : scalar
         An estimate of the standard error of the mean of a binomial trial.
+    params : dict
+        A dict of params related to the classification result.
     """
-    def __init__(self, test_error_height, error_bar_height):
+    def __init__(self, test_error_height, error_bar_height, params):
         hundred_percent_height = 122.3581549180 / 70 * 100
         self._accuracy = 1 - (test_error_height / hundred_percent_height)
         self.standard_error = error_bar_height / 2.0 / hundred_percent_height * sqrt(5)
+        self.params = dict(params)
 
     def accuracy(self, significance_level=0.05):
         """Returns pointwise and interval estimates for the accuracy.
@@ -258,7 +322,7 @@ class KusnerEtAlClassificationResult(object):
         Parameters
         ----------
         significance_level : scalar
-            The likelihood that the actual accuracy falls into the
+            The likelihood that the population accuracy falls into the
             confidence interval.
 
         Returns
