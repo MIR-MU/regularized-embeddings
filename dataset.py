@@ -1232,7 +1232,7 @@ class Dataset(object):
                     collection_corpus = map(bm25_worker, zip(
                         collection_corpus,
                         repeat(k1),
-                        repeat(0.25),
+                        repeat(0.75),
                         repeat(collection.bm25),
                         collection.bm25.doc_len,
                         repeat(common_dictionary),
