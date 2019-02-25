@@ -1150,7 +1150,7 @@ class Dataset(object):
             params.update(grid_params)
             doc_sims = train.get_similarities(validation, params)
             results = []
-            for k in range(1, 20):
+            for k in 1, 3, 5, 7, 9, 11, 13, 15, 17, 19:
                 LOGGER.info('Finding k={} nearest neighbors'.format(k))
                 params['k'] = k
                 result = ClassificationResult.from_similarities(doc_sims, train, validation, params)
