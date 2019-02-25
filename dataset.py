@@ -1325,7 +1325,11 @@ class Dataset(object):
                         positive_definite=positive_definite,
                         nonzero_limit=nonzero_limit,
                     )
-                    term_index = WordEmbeddingSimilarityIndex(common_embeddings[num_bits])
+                    term_index = WordEmbeddingSimilarityIndex(
+                        common_embeddings[num_bits],
+                        threshold=-1.0,
+                        exponent=1.0,
+                    )
                     term_matrix = cached_sparse_term_similarity_matrix(
                         term_basename,
                         speed_logs,
