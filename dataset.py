@@ -775,9 +775,9 @@ def inverse_wmd_worker(args):
     Parameters
     ----------
     (row_number, query_document) : (int, list of (int, float))
-        The identifier of a query document and the query document.
+        The identifier of a query document and the L1-normalized query document.
     (collection_number, collection_document) : (int, list of (int, float))
-        The identifier of a collection document and the collection document.
+        The identifier of a collection document and the L1-normalized collection document.
     num_bits : int
         The quantization level of the word vectors used to compute the word mover's distance.
 
@@ -1221,7 +1221,7 @@ class Dataset(object):
                     params['collection_corpus'] = list(map(common_dictionary.doc2bow, collection.corpus))
                 collection_corpus = params['collection_corpus']
                 if weights == 'bow':
-                    if space == 'dense_soft_vsm':
+                    if space == 'dense_soft_vsm' or measure == 'wmd':
                         norm = 'l1'
                     else:
                         norm = 'l2'
@@ -1259,8 +1259,11 @@ class Dataset(object):
                 query_corpus = params['query_corpus']
                 if weights in ('binary', 'bm25'):
                     query_corpus = map(binarize_worker, query_corpus)
-                elif weights == 'bow' and space != 'dense_soft_vsm':
-                    query_corpus = map(unitvec, query_corpus)
+                elif weights == 'bow':
+                    if measure == 'wmd':
+                        query_corpus = map(lambda document: unitvec(document, 'l1'), query_corpus)
+                    elif space != 'dense_soft_vsm':
+                        query_corpus = map(unitvec, query_corpus)
             query_corpus = list(query_corpus)
 
             if measure == 'wmd':
