@@ -83,6 +83,32 @@ TWITTER:
 NTCIR:
 	ln -s /mnt/storage/ntcir $@
 
+TREC:
+	mkdir -p $@
+	# Download documents
+	cd $@ && wget --user="$$TREC_USERNAME" --password="$$TREC_PASSWORD" https://ir.nist.gov/cd45/TREC-Disk-4.tar.gz
+	cd $@ && wget --user="$$TREC_USERNAME" --password="$$TREC_PASSWORD" https://ir.nist.gov/cd45/TREC-Disk-5.tar.gz
+	cd $@ && parallel --halt=2 -- tar xzvf ::: *.tar.gz && rm *.tar.gz
+	# Download relevance judgements
+	cd $@ && wget https://trec.nist.gov/data/qrels_eng/qrels.trec6.adhoc.parts1-5.tar.gz
+	cd $@ && wget https://trec.nist.gov/data/qrels_eng/qrels.trec7.adhoc.parts1-5.tar.gz
+	cd $@ && wget https://trec.nist.gov/data/qrels_eng/qrels.trec8.adhoc.parts1-5.tar.gz
+	cd $@ && parallel --halt=2 -- tar xzvf ::: *.tar.gz && rm *.tar.gz
+	cd $@ && gzip -d *.gz
+	cd $@ && cat qrels.trec6.adhoc.part* > qrels.trec6.adhoc.parts1-5
+	cd $@ && cat qrels.trec7.adhoc.part* > qrels.trec7.adhoc.parts1-5
+	cd $@ && rm qrels.trec?.adhoc.part?
+	# Download topics
+	cd $@ && wget https://trec.nist.gov/data/topics_eng/topics.301-350.gz
+	cd $@ && wget https://trec.nist.gov/data/topics_eng/topics.351-400.gz
+	cd $@ && wget https://trec.nist.gov/data/topics_eng/topics.401-450.gz
+	cd $@ && gzip -d *.gz
+	# Download treceval
+	cd $@ && wget https://trec.nist.gov/trec_eval/trec_eval.8.1.tar.gz
+	cd $@ && parallel --halt=2 -- tar xzvf ::: *.tar.gz && rm *.tar.gz
+	make -C $@/trec_eval.8.1
+	cd $@ && ln -s trec_eval.8.1/trec_eval trec_eval
+
 corpora:
 	mkdir -p $@
 	cd $@ && wget http://mattmahoney.net/dc/enwik8.zip
