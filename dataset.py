@@ -1128,39 +1128,35 @@ class Dataset(object):
                     params['collection_corpus'] = list(map(common_dictionary.doc2bow, collection.corpus))
                 collection_corpus = params['collection_corpus']
                 if weights == 'bow':
-                    if space == 'dense_soft_vsm' or measure == 'wmd':
+                    if measure == 'wmd':
                         norm = 'l1'
                     else:
                         norm = 'l2'
                     collection_corpus = map(lambda document: unitvec(document, norm), collection_corpus)
-                elif weights == 'binary':
-                    collection_corpus = map(binarize_worker, collection_corpus)
             collection_corpus = list(collection_corpus)
 
-            if weights == 'tfidf' and task == 'classification':
-                if 'query_corpus' not in params:
-                    params['query_corpus'] = list(map(collection.dictionary.doc2bow, queries.corpus))
-                query_corpus = params['query_corpus']
-                query_corpus = map(pivot_worker, zip(
-                    collection_tfidf[query_corpus],
-                    repeat(slope),
-                    repeat(collection.avgdl),
-                ))
-                query_corpus = map(translate_document_worker, zip(
-                    query_corpus,
-                    repeat(collection.dictionary),
-                    repeat(common_dictionary),
-                ))
-            else:
-                if 'query_corpus' not in params:
-                    params['query_corpus'] = list(map(common_dictionary.doc2bow, queries.corpus))
-                query_corpus = params['query_corpus']
-                if weights == 'binary':
-                    query_corpus = map(binarize_worker, query_corpus)
+            if task == 'classification':
+                if weights == 'tfidf':
+                    if 'query_corpus' not in params:
+                        params['query_corpus'] = list(map(collection.dictionary.doc2bow, queries.corpus))
+                    query_corpus = params['query_corpus']
+                    query_corpus = map(pivot_worker, zip(
+                        collection_tfidf[query_corpus],
+                        repeat(slope),
+                        repeat(collection.avgdl),
+                    ))
+                    query_corpus = map(translate_document_worker, zip(
+                        query_corpus,
+                        repeat(collection.dictionary),
+                        repeat(common_dictionary),
+                    ))
                 elif weights == 'bow':
+                    if 'query_corpus' not in params:
+                        params['query_corpus'] = list(map(common_dictionary.doc2bow, queries.corpus))
+                    query_corpus = params['query_corpus']
                     if measure == 'wmd':
                         query_corpus = map(lambda document: unitvec(document, 'l1'), query_corpus)
-                    elif space != 'dense_soft_vsm':
+                    else:
                         query_corpus = map(unitvec, query_corpus)
             query_corpus = list(query_corpus)
 
@@ -1188,15 +1184,11 @@ class Dataset(object):
                     doc_sims = collection_matrix.T.dot(query_matrix).T.todense()
                 elif space == 'dense_soft_vsm':
                     embedding_matrix = common_embedding_matrices[num_bits]
-                    if weights == 'bow':
-                        embedding_matrix = preprocessing.normalize(embedding_matrix, norm='l1')
-                    elif weights == 'tfidf':
-                        embedding_matrix = preprocessing.normalize(embedding_matrix, norm='l2')
+                    embedding_matrix = preprocessing.normalize(embedding_matrix, norm='l2')
                     collection_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, collection_matrix)
                     query_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, query_matrix)
-                    if weights != 'bow':
-                        collection_matrix = preprocessing.normalize(collection_matrix.T, norm='l2').T
-                        query_matrix = preprocessing.normalize(query_matrix.T, norm='l2').T
+                    collection_matrix = preprocessing.normalize(collection_matrix.T, norm='l2').T
+                    query_matrix = preprocessing.normalize(query_matrix.T, norm='l2').T
                     doc_sims = collection_matrix.T.dot(query_matrix).T
                 elif space == 'sparse_soft_vsm':
                     term_basename = '{num_bits}-{tfidf}-{symmetric}-{positive_definite}-{nonzero_limit}'.format(
