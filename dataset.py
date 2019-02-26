@@ -17,7 +17,6 @@ from gensim.corpora import Dictionary
 from gensim.matutils import corpus2csc, unitvec
 from gensim.models import KeyedVectors, TfidfModel, WordEmbeddingSimilarityIndex
 from gensim.similarities import SparseTermSimilarityMatrix
-from gensim.summarization.bm25 import BM25
 from gensim.utils import tokenize
 import nltk
 from nltk.corpus import reuters
@@ -818,45 +817,6 @@ def inverse_wmd_worker(args):
     return (row_number, column_number, inverse_distance)
 
 
-def bm25_worker(args):
-    """Transform a document using Okapi BM25 term weighting.
-
-    Parameters
-    ----------
-    document : list of list of (int, float)
-        A document.
-    k1 : float
-        The :math:`k_1` parameter of Okapi BM25.
-    b : float
-        The :math:`b` parameter of Okapi BM25.
-    bm25 : gensim.summarization.bm25.BM25
-        Statistics about the documents in a dataset.
-    doc_len : int
-        The length of the document.
-    dictionary : gensim.corpora.Dictionary
-        A dictionary used in a dataset.
-
-    Returns
-    -------
-    bm25_document : list of list of (int, float)
-        The transformed document.
-    """
-
-    document, k1, b, bm25, doc_len, dictionary = args
-    bm25_document = [
-        (
-            term_id,
-            (
-                bm25.idf[dictionary[term_id]] * term_weight * (k1 + 1) / (
-                    term_weight + k1 * (1 - b + b * doc_len / bm25.avgdl)
-                )
-            )
-        )
-        for term_id, term_weight in document
-    ]
-    return bm25_document
-
-
 def binarize_worker(document):
     """Binarizes a BOW document.
 
@@ -990,8 +950,6 @@ class Dataset(object):
     ----------
     name : str
         The unique name of the dataset.
-    bm25 : gensim.summarization.bm25.BM25
-        Statistics about the documents in the dataset.
     corpus : list of list of str
         The tokenized corpus of documents.
     avgdl : float
@@ -1005,8 +963,6 @@ class Dataset(object):
     ----------
     name : str
         The unique name of the dataset.
-    bm25 : gensim.summarization.bm25.BM25
-        Statistics about the documents in the dataset.
     corpus : list of list of str
         The tokenized corpus of documents.
     avgdl : float
@@ -1016,9 +972,8 @@ class Dataset(object):
     target : {list, None}
         The document classes. Defaults to `None`.
     """
-    def __init__(self, name, bm25, corpus, avgdl, dictionary, target=None):
+    def __init__(self, name, corpus, avgdl, dictionary, target=None):
         self.name = name
-        self.bm25 = bm25
         self.corpus = corpus
         self.avgdl = avgdl
         self.dictionary = dictionary
@@ -1044,12 +999,11 @@ class Dataset(object):
         """
         LOGGER.info('Reading dataset from untokenized corpus.')
         corpus = list(map(tokenize_worker, documents))
-        bm25 = BM25(corpus)
         avgdl = sum(sum(len(token) for token in document) for document in corpus) / len(corpus)
         dictionary = Dictionary(corpus, prune_at=None)
         if target is not None:
             target = list(target)
-        dataset = Dataset(name, bm25, corpus, avgdl, dictionary, target)
+        dataset = Dataset(name, corpus, avgdl, dictionary, target)
         return dataset
 
     @staticmethod
@@ -1095,7 +1049,7 @@ class Dataset(object):
             The test set.
         space : {'random', 'vsm', 'sparse_soft_vsm', 'dense_soft_vsm', 'lsi'}, optional
             The document representation used for the classification.
-        weights : {'random', 'binary', 'bow', 'tfidf', 'bm25'}, optional
+        weights : {'random', 'binary', 'bow', 'tfidf'}, optional
             The term weighting scheme used for the classification.
         measure : {'random', 'inner_product', 'wmd'}, optional
             The similarity measure used for the classification.
@@ -1123,8 +1077,6 @@ class Dataset(object):
 
         if weights == 'tfidf':
             grid_specification.update({'slope': np.linspace(0, 1, 11)})
-        elif weights == 'bm25':
-            grid_specification.update({'k1': np.linspace(1.2, 2, 9)})
 
         if space == 'sparse_soft_vsm':
             grid_specification.update({
@@ -1184,8 +1136,6 @@ class Dataset(object):
         weights = params['weights']
         if weights == 'tfidf':
             slope = params['slope']
-        elif weights == 'bm25':
-            k1 = params['k1']
 
         task = params['task']
         measure = params['measure']
@@ -1224,15 +1174,6 @@ class Dataset(object):
                     collection_corpus = map(lambda document: unitvec(document, norm), collection_corpus)
                 elif weights == 'binary':
                     collection_corpus = map(binarize_worker, collection_corpus)
-                elif weights == 'bm25':
-                    collection_corpus = map(bm25_worker, zip(
-                        collection_corpus,
-                        repeat(k1),
-                        repeat(0.75),
-                        repeat(collection.bm25),
-                        collection.bm25.doc_len,
-                        repeat(common_dictionary),
-                    ))
             collection_corpus = list(collection_corpus)
 
             if weights == 'tfidf' and task == 'classification':
@@ -1253,7 +1194,7 @@ class Dataset(object):
                 if 'query_corpus' not in params:
                     params['query_corpus'] = list(map(common_dictionary.doc2bow, queries.corpus))
                 query_corpus = params['query_corpus']
-                if weights in ('binary', 'bm25'):
+                if weights == 'binary':
                     query_corpus = map(binarize_worker, query_corpus)
                 elif weights == 'bow':
                     if measure == 'wmd':
@@ -1288,8 +1229,6 @@ class Dataset(object):
                     if space == 'lsi':
                         if weights == 'tfidf':
                             weights_str = 'tfidf_{:.1}'.format(slope)
-                        elif weights == 'bm25':
-                            weights_str = 'bm25_{:.1}'.format(k1)
                         else:
                             weights_str = weights
                         lsi_basename = '{dataset_name}-{task}-{weights_str}'.format(
