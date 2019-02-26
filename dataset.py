@@ -27,7 +27,6 @@ from sklearn.datasets import fetch_20newsgroups
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.model_selection import train_test_split
 import sklearn.preprocessing as preprocessing
-from sparsesvd import sparsesvd
 from tqdm import tqdm
 from pyemd import emd
 
@@ -689,44 +688,6 @@ def log_speed(speed_logs, message):
     LOGGER.info(speed_log)
 
 
-def cached_sparsesvd(basename, speed_logs, *args):
-    """Produces an SVD of a document matrix, loading it if cached.
-
-    Parameters
-    ----------
-    basename : str
-        The basename of the cached SVD matrix.
-    speed_logs : list of str
-        Text logs regarding processing speed.
-    args : iterable
-        The arguments of the `sparsesvd` function.
-
-    Returns
-    -------
-    ut : numpy.ndarray
-        The :math:`U^T` matrix.
-    s : numpy.ndarray
-        The :math:`S` matrix.
-    vt : numpy.ndarray
-        The :math:`V^T` matrix.
-    """
-
-    with log_speed(speed_logs, 'Spent {} seconds producing an SVD matrix'):
-        make('matrices')
-        filename = 'matrices/svd-{}.pkl.xz'.format(basename)
-        try:
-            with lzma.open(filename, 'rb') as f:
-                LOGGER.debug('Loading SVD matrices from file {}.'.format(filename))
-                ut, s, vt = pickle.load(f)
-        except IOError:
-            with log_speed(speed_logs, 'Performed SVD in {} seconds'):
-                ut, s, vt = sparsesvd(*args)
-            with lzma.open(filename, 'wb', preset=0) as f:
-                LOGGER.info('Saving SVD matrices to file {}.'.format(filename))
-                pickle.dump((ut, s, vt), f, 4)
-        return (ut, s, vt)
-
-
 def cached_sparse_term_similarity_matrix(basename, speed_logs, *args, **kwargs):
     """Produces a sparse term similarity matrix, loading it if cached.
 
@@ -1047,7 +1008,7 @@ class Dataset(object):
             The validation set.
         test : Dataset
             The test set.
-        space : {'random', 'vsm', 'sparse_soft_vsm', 'dense_soft_vsm', 'lsi'}, optional
+        space : {'random', 'vsm', 'sparse_soft_vsm', 'dense_soft_vsm'}, optional
             The document representation used for the classification.
         weights : {'random', 'binary', 'bow', 'tfidf'}, optional
             The term weighting scheme used for the classification.
@@ -1225,30 +1186,15 @@ class Dataset(object):
 
                 if space == 'vsm':
                     doc_sims = collection_matrix.T.dot(query_matrix).T.todense()
-                elif space in ('lsi', 'dense_soft_vsm'):
-                    if space == 'lsi':
-                        if weights == 'tfidf':
-                            weights_str = 'tfidf_{:.1}'.format(slope)
-                        else:
-                            weights_str = weights
-                        lsi_basename = '{dataset_name}-{task}-{weights_str}'.format(
-                            dataset_name=collection.name,
-                            task=task,
-                            weights_str=weights_str,
-                        )
-                        ut, s, vt = cached_sparsesvd(lsi_basename, speed_logs, collection_matrix, 500)
-                        collection_matrix = vt
-                        query_matrix = np.diag(1.0 / s).dot(scipy.sparse.csc_matrix.dot(ut, query_matrix))
-                        del ut
-                    elif space == 'dense_soft_vsm':
-                        embedding_matrix = common_embedding_matrices[num_bits]
-                        if weights == 'bow':
-                            embedding_matrix = preprocessing.normalize(embedding_matrix, norm='l1')
-                        elif weights == 'tfidf':
-                            embedding_matrix = preprocessing.normalize(embedding_matrix, norm='l2')
-                        collection_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, collection_matrix)
-                        query_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, query_matrix)
-                    if space != 'dense_soft_vsm' or weights != 'bow':
+                elif space == 'dense_soft_vsm':
+                    embedding_matrix = common_embedding_matrices[num_bits]
+                    if weights == 'bow':
+                        embedding_matrix = preprocessing.normalize(embedding_matrix, norm='l1')
+                    elif weights == 'tfidf':
+                        embedding_matrix = preprocessing.normalize(embedding_matrix, norm='l2')
+                    collection_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, collection_matrix)
+                    query_matrix = scipy.sparse.csc_matrix.dot(embedding_matrix.T, query_matrix)
+                    if weights != 'bow':
                         collection_matrix = preprocessing.normalize(collection_matrix.T, norm='l2').T
                         query_matrix = preprocessing.normalize(query_matrix.T, norm='l2').T
                     doc_sims = collection_matrix.T.dot(query_matrix).T
