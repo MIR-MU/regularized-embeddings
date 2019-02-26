@@ -169,17 +169,16 @@ def load_reuters():
         reuters_train_and_validation_y = []
         reuters_test_X = []
         reuters_test_y = []
-        with Pool(None) as pool:
-            for (
-                local_reuters_train_and_validation_X,
-                local_reuters_train_and_validation_y,
-                local_reuters_test_X,
-                local_reuters_test_y,
-            ) in pool.map(reuters_read_file_worker, categories):
-                reuters_train_and_validation_X.extend(local_reuters_train_and_validation_X)
-                reuters_train_and_validation_y.extend(local_reuters_train_and_validation_y)
-                reuters_test_X.extend(local_reuters_test_X)
-                reuters_test_y.extend(local_reuters_test_y)
+        for (
+            local_reuters_train_and_validation_X,
+            local_reuters_train_and_validation_y,
+            local_reuters_test_X,
+            local_reuters_test_y,
+        ) in map(reuters_read_file_worker, categories):
+            reuters_train_and_validation_X.extend(local_reuters_train_and_validation_X)
+            reuters_train_and_validation_y.extend(local_reuters_train_and_validation_y)
+            reuters_test_X.extend(local_reuters_test_X)
+            reuters_test_y.extend(local_reuters_test_y)
 
         reuters_train_and_validation_X = reuters_train_and_validation_X[:5485]
         reuters_train_and_validation_y = reuters_train_and_validation_y[:5485]
@@ -258,10 +257,9 @@ def load_ohsumed():
         )
         ohsumed_X = []
         ohsumed_y = []
-        with Pool(None) as pool:
-            for local_ohsumed_X, local_ohsumed_y in pool.map(ohsumed_read_file_worker, pathnames):
-                ohsumed_X.extend(local_ohsumed_X)
-                ohsumed_y.extend(local_ohsumed_y)
+        for local_ohsumed_X, local_ohsumed_y in map(ohsumed_read_file_worker, pathnames):
+            ohsumed_X.extend(local_ohsumed_X)
+            ohsumed_y.extend(local_ohsumed_y)
 
         (
             ohsumed_train_and_validation_X,
@@ -345,10 +343,9 @@ def load_bbcsport():
         )
         bbcsport_X = []
         bbcsport_y = []
-        with Pool(None) as pool:
-            for local_bbcsport_X, local_bbcsport_y in pool.map(bbcsport_read_file_worker, categories):
-                bbcsport_X.extend(local_bbcsport_X)
-                bbcsport_y.extend(local_bbcsport_y)
+        for local_bbcsport_X, local_bbcsport_y in map(bbcsport_read_file_worker, categories):
+            bbcsport_X.extend(local_bbcsport_X)
+            bbcsport_y.extend(local_bbcsport_y)
 
         (
             bbcsport_train_and_validation_X,
@@ -444,10 +441,9 @@ def load_bbc():
         )
         bbc_X = []
         bbc_y = []
-        with Pool(None) as pool:
-            for local_bbc_X, local_bbc_y in pool.map(bbc_read_file_worker, categories):
-                bbc_X.extend(local_bbc_X)
-                bbc_y.extend(local_bbc_y)
+        for local_bbc_X, local_bbc_y in map(bbc_read_file_worker, categories):
+            bbc_X.extend(local_bbc_X)
+            bbc_y.extend(local_bbc_y)
 
         (
             bbc_train_and_validation_X,
