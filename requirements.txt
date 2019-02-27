@@ -1,4 +1,4 @@
-git+https://github.com/Witiko/gensim.git@smart-double-logarithm
+git+https://github.com/Witiko/gensim.git@regularized-embeddings
 jupyter~=1.0.0
 matplotlib~=3.0.2
 nltk~=3.4

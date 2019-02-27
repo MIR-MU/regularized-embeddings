@@ -1042,9 +1042,11 @@ class Dataset(object):
         if space == 'sparse_soft_vsm':
             grid_specification.update({
                 'symmetric': (True, False),
-                'positive_definite': (True, False),
+                'dominant': (True, False),
                 'tfidf': (True, False),
-                'nonzero_limit': (100, 200, 300, 400, 500, 600),
+                'nonzero_limit': (100, 200, 400, 800),
+                'threshold': (-1.0, -0.5, 0.0, 0.5),
+                'exponent': (1, 2, 3, 4),
             })
 
         LOGGER.info('Grid searching on dataset {} with params {}'.format(self.name, params))
@@ -1091,8 +1093,10 @@ class Dataset(object):
         if space == 'sparse_soft_vsm':
             tfidf = params['tfidf']
             symmetric = params['symmetric']
-            positive_definite = params['positive_definite']
+            dominant = params['dominant']
             nonzero_limit = params['nonzero_limit']
+            threshold = params['threshold']
+            exponent = params['exponent']
 
         weights = params['weights']
         if weights == 'tfidf':
@@ -1191,17 +1195,19 @@ class Dataset(object):
                     query_matrix = preprocessing.normalize(query_matrix.T, norm='l2').T
                     doc_sims = collection_matrix.T.dot(query_matrix).T
                 elif space == 'sparse_soft_vsm':
-                    term_basename = '{num_bits}-{tfidf}-{symmetric}-{positive_definite}-{nonzero_limit}'.format(
+                    term_basename = '{num_bits}-{tfidf}-{symmetric}-{dominant}-{nonzero_limit}-{threshold}-{exponent}'.format(
                         num_bits=num_bits,
                         tfidf=tfidf,
                         symmetric=symmetric,
-                        positive_definite=positive_definite,
+                        dominant=dominant,
                         nonzero_limit=nonzero_limit,
+                        threshold=threshold,
+                        exponent=exponent,
                     )
                     term_index = WordEmbeddingSimilarityIndex(
                         common_embeddings[num_bits],
-                        threshold=-1.0,
-                        exponent=1.0,
+                        threshold=threshold,
+                        exponent=exponent,
                     )
                     term_matrix = cached_sparse_term_similarity_matrix(
                         term_basename,
@@ -1210,7 +1216,7 @@ class Dataset(object):
                         common_dictionary,
                         tfidf=common_tfidf if tfidf else None,
                         symmetric=symmetric,
-                        positive_definite=positive_definite,
+                        dominant=dominant,
                         nonzero_limit=nonzero_limit,
                     )
                     collection_matrix_norm = collection_matrix.T.dot(term_matrix).multiply(collection_matrix.T).sum(axis=1).T
