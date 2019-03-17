@@ -819,7 +819,7 @@ def pivot_worker(args):
         (
             term_id,
             term_weight / (
-                1.0 - slope + slope * (doclen / avgdl)
+                (1.0 - slope) * avgdl + slope * doclen
             ),
         )
         for term_id, term_weight in document
