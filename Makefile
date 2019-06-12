@@ -1,6 +1,8 @@
-.PHONY: all
+.PHONY: all datasets
 
-all: AMAZON BBC OHSUMED Reuters-21578 RCV1v2 CRANFIELD 20NEWS TWITTER NTCIR corpora vectors matrices
+all: corpora vectors matrices
+
+datasets: AMAZON BBC OHSUMED Reuters-21578 20NEWS TWITTER
 
 AMAZON:
 	mkdir -p $@

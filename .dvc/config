@@ -1,0 +1,4 @@
+['remote "origin"']
+url = https://mir.fi.muni.cz/dvc/
+[core]
+remote = origin

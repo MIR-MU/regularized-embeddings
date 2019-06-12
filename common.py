@@ -58,7 +58,7 @@ def f_test(result_pairs, significance_level=0.05):
 
     Parameters
     ----------
-    result_pairs : iterable of tuple of {ClassificationResult,KusnerEtAlClassificationResult}
+    result_pairs : iterable of tuple of ClassificationResult
         Pairs of classification results.
     significance_level : scalar
         The likelihood that the population speed falls into the confidence
@@ -77,15 +77,10 @@ def f_test(result_pairs, significance_level=0.05):
         variances = []
         nums_trials = []
         for result in results:
-            if isinstance(result, ClassificationResult):
-                num_successes = np.diag(result.confusion_matrix).sum()
-                num_trials = np.sum(result.confusion_matrix)
-                mean = num_successes / num_trials
-                variance = mean * (1.0 - mean) / num_trials
-            elif isinstance(result, KusnerEtAlClassificationResult):
-                variance = result.standard_error**2
-                num_trials = result.num_trials
-                mean = result.accuracy()[0]
+            num_successes = np.diag(result.confusion_matrix).sum()
+            num_trials = np.sum(result.confusion_matrix)
+            mean = num_successes / num_trials
+            variance = mean * (1.0 - mean) / num_trials
             means.append(mean)
             variances.append(variance)
             nums_trials.append(num_trials)
@@ -110,7 +105,7 @@ def f_test(result_pairs, significance_level=0.05):
     return test_results
 
 
-def read_speeds(results, significance_level=0.05):
+def read_speeds(results, significance_level=0.05, num_workers=1):
     """Returns pointwise and interval estimates for the document processing speed.
 
     We invoke the central limit theorem and assume that the sampling
@@ -120,11 +115,14 @@ def read_speeds(results, significance_level=0.05):
 
     Parameters
     ----------
-    results : iterable of {ClassificationResult,KusnerEtAlClassificationResult}
+    results : iterable of ClassificationResult
         Classification results.
-    significance_level : scalar
+    significance_level : scalar, optional
         The likelihood that the population speed falls into the confidence
-        interval.
+        interval.  Defaults to 0.05.
+    num_workers : scalar, optional
+        The number of workers that produced the classification results.
+        Defaults to 1.
 
     Returns
     -------
@@ -151,9 +149,8 @@ def read_speeds(results, significance_level=0.05):
             elif similarity_speed_match:
                 num_similarities = int(similarity_speed_match.group('num_documents'))
                 similarity_duration = float(similarity_speed_match.group('duration')) - matrix_production_duration
-                matrix_production_duration = 0.0
                 nums_similarities.append(num_similarities)
-                similarity_durations.append(similarity_duration)
+                similarity_durations.append(similarity_duration * float(num_workers))
 
     pointwise_estimate = sum(nums_similarities) / sum(similarity_durations)
     speeds = np.divide(nums_similarities, similarity_durations)
@@ -387,63 +384,3 @@ class ClassificationResult(object):
 
     def __repr__(self):
         return '<ClassificationResult, accuracy: {:.02f}%, params: {}>'.format(self._accuracy * 100, self.params)
-
-
-class KusnerEtAlClassificationResult(object):
-    """A classification result taken from the Kusner et al. (2015) paper.
-
-    Parameters
-    ----------
-    test_error_height : scalar
-        The height in pixels of a reported test error in Figure 3 of Kusner et al. (2015).
-    error_bar_height : scalar
-        The height in pixels of a reported error bar in Figure 3 of Kusner et al. (2015).
-    num_trials : int
-        The number of Bernoulli trials in the result.
-    params : dict
-        A dict of params related to the classification result.
-
-    Attributes
-    ----------
-    num_trials : int
-        The number of Bernoulli trials in the result.
-    params : dict
-        A dict of params related to the classification result.
-    standard_error : scalar
-        An estimate of the standard error of the mean of a Bernoulli trial.
-    """
-    def __init__(self, test_error_height, error_bar_height, num_trials, params):
-        hundred_percent_height = 122.3581549180 / 70 * 100
-        self._accuracy = 1 - (test_error_height / hundred_percent_height)
-        self.num_trials = num_trials
-        self.params = dict(params)
-        self.standard_error = error_bar_height / 2.0 / hundred_percent_height * sqrt(5)
-
-    def accuracy(self, significance_level=0.05):
-        """Returns pointwise and interval estimates for the accuracy.
-
-        We invoke the central limit theorem and assume that the sampling distribution
-        of the mean is normal.
-
-        Parameters
-        ----------
-        significance_level : scalar
-            The likelihood that the population accuracy falls into the
-            confidence interval.
-
-        Returns
-        -------
-        pointwise_estimate : scalar
-            An unbiased pointwise estimate of the expected value of
-            the accuracy.
-        lower_bound : scalar
-            The lower bound of the confidence interval for the accuracy.
-        upper_bound : scalar
-            The upper bound of the confidence interval for the accuracy.
-        """
-
-        pointwise_estimate = self._accuracy
-        interval_radius = self.standard_error * scipy.stats.norm.ppf(1 - significance_level / 2.0)
-        lower_bound = max(0.0, pointwise_estimate - interval_radius)
-        upper_bound = min(1.0, pointwise_estimate + interval_radius)
-        return (pointwise_estimate, lower_bound, upper_bound)

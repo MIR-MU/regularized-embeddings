@@ -1,22 +1,31 @@
-Regularized Word Embeddings in Text Classification and in Ad-hoc Information Retrieval
-======================================================================================
-
-This is experimental code for the “Regularized Word Embeddings in Text
-Classification and in Ad-hoc Information Retrieval” (Novotný et al., 2019)
-paper.
-
-Using the Code
---------------
-
+Regularized Word Embeddings in Text Classification
+==================================================
 Use Python 3.4+ with Pip to install the required Python packages:
 
     pip install -r requirements.txt
 
-Open the Jupyter notebook with the experimental code:
+Reproducing Our Results
+-----------------------
+To reproduce our results, you can download all the datasets and corpora,
+produce Word2Vec models and similarity matrices, and perform the evaluation.
+Alternatively, you can download and visualize our result files.
+
+### Performing Your Own Evaluation
+To perform your own evaluation, you will require the following additional
+tools: GNU Make, Perl 5, GNU Parallel, GNU Wget, Unzip, and GNU Coreutils.
+Execute the following command:
+
+    dvc repro results.dvc
+
+Open the Jupyter notebook with the experimental code to see the results:
 
     jupyter-notebook classification.ipynb
 
-To reproduce our results, remove all files in the `results` directory, and run
-all the cells in the Jupyter notebook. You will require GNU Make, Perl 5, GNU
-Parallel, GIT, GNU Wget, Unzip, and GNU Coreutils (see the file `Makefile` for
-details).
+### Downloading and Visualizing Our Results
+To download our results, execute the following command:
+
+    dvc pull results.dvc
+
+Open the Jupyter notebook with the experimental code to see the results:
+
+    jupyter-notebook classification.ipynb

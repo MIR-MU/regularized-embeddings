@@ -1,0 +1,30 @@
+outs:
+- path: corpora
+  cache: true
+  metric: false
+  persist: false
+  md5: 1483ee5477b6ccae3f54655620ca10a8.dir
+- path: vectors
+  cache: true
+  metric: false
+  persist: false
+  md5: 6ee84ce36bd59a1d7239d8089af85273.dir
+- path: matrices
+  cache: true
+  metric: false
+  persist: false
+  md5: ad8fda3b234f02ae453e0d05f7eb424a.dir
+- path: results
+  cache: true
+  metric: false
+  persist: false
+  md5: 08537d4fbcb7b1be519c9723a90fb0eb.dir
+- md5: 348d915fad26805c468deec11f630199.dir
+  cache: true
+  path: figures
+  persist: false
+  metric: false
+wdir: .
+cmd: jupyter nbconvert --to notebook --inplace --ExecutePreprocessor.timeout=-1 --execute
+  classification.ipynb
+md5: e5d24e21748e99dcef5b18e000fe77df

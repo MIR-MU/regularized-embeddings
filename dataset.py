@@ -1050,6 +1050,7 @@ class Dataset(object):
             })
 
         LOGGER.info('Grid searching on dataset {} with params {}'.format(self.name, params))
+        results = []
         for grid_params in tqdm(
                     grid_search(grid_specification),
                     position=0,
@@ -1060,7 +1061,6 @@ class Dataset(object):
                 ):
             params.update(grid_params)
             doc_sims = train.get_similarities(validation, params)
-            results = []
             for k in 1, 3, 5, 7, 9, 11, 13, 15, 17, 19:
                 LOGGER.info('Finding k={} nearest neighbors'.format(k))
                 params['k'] = k
