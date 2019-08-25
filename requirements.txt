@@ -4,6 +4,7 @@ jupyter~=1.0.0
 matplotlib~=3.0.2
 nltk~=3.4
 numpy~=1.16.0
+pandas~=0.24.2
 pyemd~=0.5.1
 scikit-learn~=0.20.2
 scikits-sparse~=0.2
