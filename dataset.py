@@ -27,12 +27,17 @@ from sklearn.datasets import fetch_20newsgroups
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.model_selection import train_test_split
 import sklearn.preprocessing as preprocessing
+from smart_open import register_compressor
 from tqdm import tqdm
 from pyemd import emd
 
 from common import ClassificationResult, make
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _handle_xz(file_obj, mode):
+    return lzma.LZMAFile(filename=file_obj, mode=mode)
 
 
 def load_twitter():
@@ -1241,9 +1246,10 @@ common_dictionary = common_corpus.dictionary
 common_tfidf = TfidfModel(dictionary=common_dictionary, smartirs='dtn')
 
 make('vectors')
+register_compressor('.xz', _handle_xz)
 common_embeddings = {
-    1: KeyedVectors.load_word2vec_format('vectors/1b_1000d_vectors_e10_nonbin', binary=False),
-    32: KeyedVectors.load_word2vec_format('vectors/32b_200d_vectors_e10_nonbin', binary=False),
+    1: KeyedVectors.load_word2vec_format('vectors/1b_1000d_vectors_e10_nonbin.xz', binary=False),
+    32: KeyedVectors.load_word2vec_format('vectors/32b_200d_vectors_e10_nonbin.xz', binary=False),
 }
 common_embedding_matrices = {
     num_bits: translate_embeddings(embeddings, common_dictionary)

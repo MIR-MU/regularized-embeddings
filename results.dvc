@@ -3,23 +3,23 @@ outs:
   cache: true
   metric: false
   persist: false
-  md5: 1483ee5477b6ccae3f54655620ca10a8.dir
+  md5: fc07893715d3a70a7da165e8ae50235b.dir
 - path: vectors
   cache: true
   metric: false
   persist: false
-  md5: 6ee84ce36bd59a1d7239d8089af85273.dir
+  md5: 1018821b8223a5adcd913f32f6cea3a6.dir
 - path: matrices
   cache: true
   metric: false
   persist: false
-  md5: ad8fda3b234f02ae453e0d05f7eb424a.dir
+  md5: cba92648fda3a0051eaf2969e06cb2be.dir
 - path: results
   cache: true
   metric: false
   persist: false
   md5: 08537d4fbcb7b1be519c9723a90fb0eb.dir
-- md5: e194802b0553dcb14c4e0d77c9465564.dir
+- md5: cbe81749f8ce8ab0f5f549318fc506df.dir
   cache: true
   path: figures
   persist: false
@@ -27,4 +27,4 @@ outs:
 wdir: .
 cmd: jupyter nbconvert --to notebook --inplace --ExecutePreprocessor.timeout=-1 --execute
   classification.ipynb
-md5: 0258dd253d97c5e5882ff7ed0efe52ef
+md5: 8d6195aa55eda9b5aeed213b5fed8ca4

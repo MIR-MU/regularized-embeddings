@@ -116,6 +116,7 @@ corpora:
 	cd $@ && wget http://mattmahoney.net/dc/enwik8.zip
 	cd $@ && parallel --halt=2 -- unzip ::: *.zip
 	cd $@ && perl ../wikifil.pl enwik8 > fil8
+	cd $@ && wget https://raw.githubusercontent.com/tmikolov/word2vec/master/questions-words.txt
 
 matrices:
 	mkdir -p $@
@@ -131,7 +132,9 @@ vectors:
 	make corpora
 	mkdir -p $@
 	Word2Bits/word2bits -sample 1e-4 -bitlevel 0 -size 200  -window 10 -negative 24 -threads $(shell nproc) -iter 10 -min-count 5 -train corpora/fil8 -output vectors/32b_200d_vectors_e10_nonbin -binary 0
+	xz -9 vectors/32b_200d_vectors_e10_nonbin
 	Word2Bits/word2bits -sample 1e-4 -bitlevel 1 -size 1000 -window 10 -negative 24 -threads $(shell nproc) -iter 10 -min-count 5 -train corpora/fil8 -output vectors/1b_1000d_vectors_e10_nonbin -binary 0
+	xz -9 vectors/1b_1000d_vectors_e10_nonbin
 
 Word2Bits:
 	git clone https://github.com/agnusmaximus/Word2Bits

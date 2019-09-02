@@ -1,4 +1,4 @@
-dvc~=0.40.2
+dvc~=0.57.0
 git+https://github.com/Witiko/gensim.git@regularized-embeddings
 jupyter~=1.0.0
 matplotlib~=3.0.2
@@ -9,5 +9,6 @@ pyemd~=0.5.1
 scikit-learn~=0.20.2
 scikits-sparse~=0.2
 scipy~=1.2.0
+smart-open~=1.3.0
 tqdm~=4.30.0
 trectools~=0.0.36

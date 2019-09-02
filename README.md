@@ -12,8 +12,8 @@ Alternatively, you can download and visualize our result files.
 
 ### Performing Your Own Evaluation
 To perform your own evaluation, you will require the following additional
-tools: GNU Make, Perl 5, GNU Parallel, GNU Wget, Unzip, and GNU Coreutils.
-Execute the following command:
+tools: GNU Make, Perl 5, GNU Parallel, GNU Wget, Unzip, XZ Utils, and GNU
+Coreutils. Execute the following command:
 
     dvc repro results.dvc
 
