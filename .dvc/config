@@ -1,4 +1,6 @@
 ['remote "origin"']
-url = https://mir.fi.muni.cz/dvc/
+url = https://mir.fi.muni.cz/dvc/regularized-embeddings
+['remote "localhost"']
+url = /mnt/storage/www/dvc/regularized-embeddings
 [core]
 remote = origin
