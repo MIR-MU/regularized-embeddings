@@ -19,7 +19,7 @@ outs:
   metric: false
   persist: false
   md5: 08537d4fbcb7b1be519c9723a90fb0eb.dir
-- md5: 64b1dbcf69f11c3376b666855de541ec.dir
+- md5: 3a8cd0cbd680653b260726aa23b8d781.dir
   cache: true
   path: figures
   persist: false
@@ -27,4 +27,4 @@ outs:
 wdir: .
 cmd: jupyter nbconvert --to notebook --inplace --ExecutePreprocessor.timeout=-1 --execute
   classification.ipynb
-md5: 8481ca3bd4fe04b09fadd1beadbea527
+md5: fd4b0ca8d6da5515473b39654ede41ba
