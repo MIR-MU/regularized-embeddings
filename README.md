@@ -29,3 +29,24 @@ To download our results, execute the following command:
 Open the Jupyter notebook with the experimental code to see the results:
 
     jupyter-notebook classification.ipynb
+
+Citing
+------
+### Text
+
+NOVOTNÝ, Vít, Eniafe Festus AYETIRAN, Michal ŠTEFÁNIK and Petr SOJKA. Text
+classification with word embedding regularization and soft similarity measure.
+New York, USA: Cornell University, 2020.
+
+### BibTeX
+```bib
+@misc{novotny2020text,
+  title = {{Text classification with word embedding regularization and soft similarity measure}},
+  author = {V\'{i}t Novotn\'{y} and Eniafe Festus Ayetiran and Michal \v{S}tef\'{a}nik and Petr Sojka},
+  year = 2020,
+  eprint = {2003.05019v1},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.IR},
+  url = {https://arxiv.org/abs/2003.05019v1},
+}
+```
